@@ -28,4 +28,10 @@ export interface IUserDao {
    * Returns false for a user id that no longer exists.
    */
   isPremium(userId: string): Promise<boolean>;
+  /**
+   * Unlocks an account without a payment. Only the dev-only test account uses
+   * this — a real unlock goes through the payments flow, which records what
+   * was paid. Never call this from a request path.
+   */
+  grantPremium(userId: string): Promise<void>;
 }

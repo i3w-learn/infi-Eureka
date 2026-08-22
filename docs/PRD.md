@@ -17,6 +17,8 @@ infi-Eureka is an exam-prep platform for Indian students preparing for **NEET** 
 
 There is no subscription, no per-course purchase, and no free tier beyond the account itself. One price, everything opens, forever.
 
+The v1 launch audience is the students of a partner coaching institute — roughly **350 users** (see §3). The deal is worth roughly **₹12 lakh** in revenue (~350 students × ₹3,499).
+
 ---
 
 ## 2. The problem
@@ -33,9 +35,12 @@ The paid alternatives solve this but charge subscription fees that renew every m
 
 | | |
 |---|---|
+| **Launch cohort** | Students of a coaching institute — roughly **350 users** at launch. This is the known, committed audience v1 is built and sized for; open signups beyond the institute can follow later. The deal is expected to bring in roughly **₹12 lakh** (~350 × ₹3,499). |
 | **Primary user** | A Class 11/12 or repeat-year NEET aspirant, age 16–20, in India. Studies mostly on a laptop; browses on a phone. Price-sensitive; the payment decision usually involves a parent. |
 | **Payer** | Often a parent, paying by UPI. They need the price to be obvious and the transaction to be finished in under a minute. |
 | **Content admin (internal)** | Us, for v1. Uploads videos, writes notes, loads question banks. Not a customer-facing role yet. |
+
+Because the launch audience is ~350 coaching students, v1 does not need to be engineered for large scale: a single server and a single PostgreSQL instance are enough, and marketing/SEO work is out of scope until we open up beyond the institute.
 
 ---
 
@@ -201,6 +206,7 @@ Priority: **P0** = must ship in v1. **P1** = wanted, can follow.
 | Billing | One time. No renewal. |
 | Currency | INR only |
 | Methods | UPI, cards, netbanking (whatever Razorpay offers) |
+| Expected v1 revenue | ~**₹12 lakh** from the coaching cohort (~350 students × ₹3,499) |
 
 Both numbers live in the database, not in code, so the discount can be changed for a campaign without a deploy. The server is the only thing allowed to decide the amount.
 

@@ -18,4 +18,6 @@ export interface IVideoDao {
   list(subject?: string): Promise<VideoRow[]>;
   findById(id: string): Promise<VideoRow | null>;
   create(input: CreateVideoInput): Promise<VideoRow>;
+  /** Whether this video plays without payment. */
+  isFreeSample(id: string): Promise<boolean>;
 }

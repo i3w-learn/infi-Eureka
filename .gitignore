@@ -1,14 +1,46 @@
+# Dependencies & build output
 node_modules/
 dist/
 build/
+.vite/
+coverage/
+*.tsbuildinfo
 
+# Secrets & env
 .env
-.env.local
-*.log
+.env.*
+!.env.example
+*.pem
+*.key
 
+# Logs & runtime junk
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+tmp/
+temp/
+
+# Backups & scratch files
+*.bak
+*.orig
+*.rej
+*~
+*.swp
+
+# OS / editor
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
 
 # Uploaded lecture videos — content, not code.
 backend/storage/
+
+# Raw content data (question banks, mock tests, answer-key PDFs).
+# Big and proprietary; the generated SQL under backend/seeds/ is what gets committed.
+backend/data/
+
+# Generated PDF exports of the markdown docs.
+docs/*.pdf

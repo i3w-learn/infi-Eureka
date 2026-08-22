@@ -28,9 +28,13 @@ const MAX_OTP_ATTEMPTS = 5;
 
 /**
  * A fixed account for manual testing, active only outside production:
- * phone 9999999999 always accepts code 1234, no SMS, no random code.
- * The account is created on first login, so it survives a database reset.
- * The `isProduction` guard means none of this exists on a real deployment.
+ * phone 9999999999 always accepts code 1234, no SMS, no random code. The
+ * account is created on first login and unlocked without payment, so testing
+ * never stops at the paywall.
+ *
+ * The `isProduction` guard means none of this exists on a real deployment —
+ * without it this would be a fixed-code backdoor into any account, and a way
+ * to hand out free access. Never lift that guard.
  */
 const TEST_PHONE = '9999999999';
 const TEST_OTP = '1234';
@@ -137,6 +141,10 @@ export class AuthService {
           studentClass: '12',
           subjects: ['biology', 'physics', 'chemistry'],
         }));
+      // Unlocked on every login so testing never stops at the paywall. Re-applied
+      // each time rather than once at creation, so it survives a database reset
+      // or the flag being cleared by hand.
+      await this.userDao.grantPremium(testUser.id);
       return { isNewUser: false, accessToken: createSessionToken(testUser.id) };
     }
 

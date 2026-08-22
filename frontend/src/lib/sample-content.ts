@@ -5,7 +5,15 @@
  * then come from GET /videos, /notes and /tests. Shapes mirror the planned
  * tables so the swap is mechanical.
  */
-export type Subject = 'biology' | 'physics' | 'chemistry' | 'mixed';
+// NEET splits Biology into Botany and Zoology, and students pick lectures by
+// that split, so both are first-class rather than folded into 'biology'.
+export type Subject =
+  | 'biology'
+  | 'botany'
+  | 'zoology'
+  | 'physics'
+  | 'chemistry'
+  | 'mixed';
 
 export interface ContentItem {
   id: string;

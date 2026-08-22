@@ -6,6 +6,8 @@ export interface TestRow {
   title: string;
   subject: string;
   duration_minutes: number;
+  /** Open to any signed-in student, paid or not. At most one test is. */
+  is_free_sample: boolean;
   created_at: string;
 }
 
@@ -30,6 +32,11 @@ export interface QuestionRow {
   option_d: string;
   marks: number;
   negative_marks: number;
+  /** Which NEET subject this question belongs to, e.g. 'Botany'. Null on
+      papers seeded before the CBT screen needed subject tabs. */
+  subject: string | null;
+  /** 'A' (compulsory) or 'B' (attempt any 10). Null alongside `subject`. */
+  section: 'A' | 'B' | null;
 }
 
 /** A question WITH its answer — only ever fetched for scoring and results. */

@@ -193,3 +193,426 @@
     animation: banner-sheen 6s ease-in-out infinite;
   }
 }
+
+/* The lecture stage fills the screen when a student presses play. Fullscreen
+   ignores the page's aspect ratio, so the rounded corners and the 16:9 box
+   both have to go or the video sits letterboxed inside its own card. */
+.video-stage:fullscreen {
+  border-radius: 0;
+  aspect-ratio: auto;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ==========================================================================
+   The CBT exam screen.
+   --------------------------------------------------------------------------
+   Ported from the InfiNotes mock-test player, which students have already sat
+   real papers on. Its look is deliberately different from the rest of Eureka:
+   flat "sticker" cards with a hard offset shadow and a heavy dark keyline.
+   That is not decoration — under exam pressure the hit targets have to be
+   unmistakable, and a pressed option physically drops into its own shadow, so
+   "did that register?" is answered by the shape rather than by a colour tint.
+
+   Only the page background stays Eureka's warm paper. Everything else keeps
+   the InfiNotes contrast, including its yellow accent, which reads at a glance
+   against paper in a way the marigold does not at these small sizes.
+   ========================================================================== */
+/* The "sticker" tokens, shared by the exam screen and the app sidebar: one
+   heavy keyline, one hard offset shadow, one yellow accent. Defined at the
+   root because both surfaces draw from them. */
+:root {
+  --brut-line: #1d2433;
+  --brut-accent: #f6d33f;
+  --brut-accent-soft: #fff4d0;
+  --brut-accent-exit: #ffe1da;
+  --brut-surface: #fffdf8;
+  --brut-ink: #171d2a;
+  --brut-ink-soft: #556074;
+  --brut-ink-faint: #798395;
+}
+
+@layer components {
+  .cbt {
+    /* Palette states, carried over from InfiNotes so a student moving between
+       the two products reads the same colours for the same thing. */
+    --cbt-answered: #32d74b;
+    --cbt-review: #bf5af2;
+    --cbt-both: #ff9f0a;
+    --cbt-unvisited: #b8aa8a;
+
+    color: var(--brut-ink);
+  }
+
+  /* ---- The pressable primitive every button on this screen is built on ---- */
+  .cbt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 48px;
+    padding: 0 1.15rem;
+    border: 1px solid var(--brut-line);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--brut-ink-soft);
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 4px 4px 0 var(--brut-line);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+
+  .cbt-btn:hover:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--brut-line);
+  }
+
+  .cbt-btn:active:not(:disabled),
+  .cbt-btn[data-active='true'] {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 var(--brut-line);
+  }
+
+  .cbt-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .cbt-btn[data-variant='primary'] {
+    background: var(--brut-accent);
+    color: var(--brut-ink);
+    font-weight: 700;
+  }
+
+  .cbt-btn[data-active='true'][data-variant='ghost'] {
+    background: var(--brut-accent-soft);
+    color: var(--brut-ink);
+  }
+
+  /* Subject tab: same primitive, sits pressed when it is the open subject. */
+  .cbt-tab[data-current='true'] {
+    background: var(--brut-accent);
+    color: var(--brut-ink);
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 var(--brut-line);
+  }
+
+  /* ---- Header ---- */
+  .cbt-header {
+    border-bottom: 3px solid var(--brut-line);
+    background: color-mix(in srgb, var(--color-paper) 92%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  /* ---- An answer choice ---- */
+  .cbt-option {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    gap: 16px;
+    min-height: 72px;
+    padding: 18px 20px;
+    border: 1px solid var(--brut-line);
+    border-radius: 24px;
+    background: var(--brut-surface);
+    box-shadow: 4px 4px 0 var(--brut-line);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+
+  .cbt-option:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--brut-line);
+  }
+
+  /* Chosen answers stay visibly pressed — the state has to survive scrolling
+     away and coming back, so it cannot rely on :active. */
+  .cbt-option[data-selected='true'] {
+    background: var(--brut-accent);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--brut-line);
+  }
+
+  .cbt-option-key {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 16px;
+    background: #efe5cc;
+    color: var(--brut-ink-soft);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .cbt-option[data-selected='true'] .cbt-option-key {
+    background: var(--brut-line);
+    color: #fffaf0;
+  }
+
+  /* ---- Question palette ---- */
+  .cbt-palette {
+    border-left: 1px solid var(--brut-line);
+    background: var(--color-paper-warm);
+  }
+
+  .cbt-cell {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--brut-line);
+    border-radius: 16px;
+    background: var(--brut-surface);
+    color: var(--brut-ink-soft);
+    font-size: 0.7rem;
+    font-weight: 600;
+    box-shadow: 3px 3px 0 var(--brut-line);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+
+  .cbt-cell:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 var(--brut-line);
+  }
+
+  .cbt-cell[data-status='answered'] {
+    background: color-mix(in srgb, var(--cbt-answered) 22%, white);
+    color: #1c6b2c;
+  }
+
+  .cbt-cell[data-status='review'] {
+    background: color-mix(in srgb, var(--cbt-review) 22%, white);
+    color: #6c2b8c;
+  }
+
+  .cbt-cell[data-status='answered-review'] {
+    background: color-mix(in srgb, var(--cbt-both) 26%, white);
+    color: #8a5300;
+  }
+
+  /* Where you are wins over what you have done to it. */
+  .cbt-cell[data-current='true'] {
+    background: var(--brut-line);
+    color: #fffaf0;
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--brut-line);
+  }
+
+  .cbt-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--brut-line);
+    border-radius: 4px;
+  }
+
+  /* ---- Timer ---- */
+  .cbt-timer {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+  }
+
+  .cbt-timer[data-tone='warning'] {
+    color: #b06a00;
+  }
+
+  .cbt-timer[data-tone='critical'] {
+    color: var(--color-danger);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cbt-timer[data-tone='critical'] {
+      animation: cbt-timer-pulse 1s ease-in-out infinite;
+    }
+  }
+
+  @keyframes cbt-timer-pulse {
+    50% { opacity: 0.55; }
+  }
+
+  /* ---- Small screens: the shadows shrink so cards do not crowd ---- */
+  @media (max-width: 768px) {
+    .cbt-btn,
+    .cbt-option {
+      box-shadow: 3px 3px 0 var(--brut-line);
+    }
+
+    .cbt-btn {
+      min-height: 44px;
+    }
+
+    .cbt-option {
+      gap: 12px;
+      padding: 14px 15px;
+      border-radius: 20px;
+    }
+
+    .cbt-option-key {
+      width: 34px;
+      height: 34px;
+      border-radius: 13px;
+    }
+
+    .cbt-palette {
+      border-left: 0;
+      border-top: 3px solid var(--brut-line);
+    }
+  }
+}
+
+/* ==========================================================================
+   The app shell: a permanent left rail on every logged-in page.
+   --------------------------------------------------------------------------
+   Same sticker language as the exam screen, so the product reads as one thing.
+   The rail is the navigation AND the identity block — there is no top bar to
+   duplicate it, which is what lets the content area use the full screen.
+   ========================================================================== */
+@layer components {
+  /* A shade warmer than the content behind it. Same cream family, but the rail
+     has to read as a panel rather than dissolve into the page. */
+  .shell-rail {
+    border-right: 3px solid var(--brut-line);
+    background: var(--color-paper-warm);
+  }
+
+  .shell-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--brut-line);
+    border-radius: 18px;
+    background: #ffffff;
+    color: var(--brut-ink);
+    font-weight: 600;
+    text-align: left;
+    box-shadow: 4px 4px 0 var(--brut-line);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+
+  .shell-nav-item:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--brut-line);
+  }
+
+  /* The page you are on sits pressed into its own shadow — the same "this is
+     active" signal the exam screen uses for a chosen answer. */
+  .shell-nav-item[aria-current='page'] {
+    background: var(--brut-accent);
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 var(--brut-line);
+  }
+
+  .shell-nav-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--brut-line);
+    border-radius: 12px;
+    background: var(--brut-accent-soft);
+    color: var(--brut-ink);
+  }
+
+  .shell-nav-item[aria-current='page'] .shell-nav-icon {
+    background: var(--brut-surface);
+  }
+
+  /* Leaving is not a destination, so it gets its own tint rather than the
+     yellow that marks "you are here". */
+  .shell-nav-item[data-exit='true'] .shell-nav-icon {
+    background: var(--brut-accent-exit);
+  }
+
+  .shell-avatar {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--brut-line);
+    border-radius: 999px;
+    background: var(--brut-surface);
+    box-shadow: 3px 3px 0 var(--brut-line);
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--brut-ink);
+  }
+
+  @media (max-width: 768px) {
+    .shell-nav-item {
+      box-shadow: 3px 3px 0 var(--brut-line);
+    }
+  }
+}
+
+/* ---- Collapsed rail: icons only, labels gone ---- */
+@layer components {
+  .shell-nav-item[data-collapsed='true'] {
+    justify-content: center;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  /* Sits astride the rail's edge so it is in the same place whichever state
+     the rail is in — the control must not move when it is used. */
+  .shell-collapse-toggle {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--brut-line);
+    border-radius: 999px;
+    background: var(--brut-surface);
+    color: var(--brut-ink);
+    box-shadow: 2px 2px 0 var(--brut-line);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .shell-collapse-toggle:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--brut-line);
+  }
+
+  /* The same ambient washes the login page sits on, so the app does not drop
+     to a flat field the moment a student signs in. Fixed, so they stay put
+     while the content scrolls past them. */
+  .shell-wash {
+    position: fixed;
+    z-index: 0;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  .shell-wash-marigold {
+    width: 34rem;
+    height: 34rem;
+    top: -12rem;
+    right: -8rem;
+    background: rgba(239, 113, 38, 0.13);
+  }
+
+  .shell-wash-plum {
+    width: 32rem;
+    height: 32rem;
+    bottom: -14rem;
+    left: 10rem;
+    background: rgba(76, 42, 94, 0.09);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .shell-wash-marigold {
+      animation: blob-drift 20s ease-in-out infinite alternate;
+    }
+
+    .shell-wash-plum {
+      animation: blob-drift 26s ease-in-out infinite alternate-reverse;
+    }
+  }
+}

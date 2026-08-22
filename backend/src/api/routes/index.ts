@@ -6,6 +6,7 @@ import { videoRoutes } from './video-route.js';
 import { noteRoutes } from './note-route.js';
 import { testRoutes } from './test-route.js';
 import { attemptRoutes } from './attempt-route.js';
+import { libraryRoutes } from './library-route.js';
 
 /** Every endpoint is versioned under this prefix (SRS §5). */
 export const API_PREFIX = '/api/v1';
@@ -23,4 +24,5 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(noteRoutes, { prefix: API_PREFIX });
   await app.register(testRoutes, { prefix: API_PREFIX });
   await app.register(attemptRoutes, { prefix: API_PREFIX });
+  await app.register(libraryRoutes, { prefix: API_PREFIX });
 }

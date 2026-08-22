@@ -45,6 +45,8 @@ const questions: QuestionWithAnswerRow[] = (['A', 'B'] as const).map((correct, i
   option_d: 'd',
   marks: 4,
   negative_marks: 1,
+  subject: 'Botany',
+  section: 'A',
   correct_option: correct,
 }));
 

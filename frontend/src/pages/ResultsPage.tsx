@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { AppHeader } from '../components/AppHeader';
 import { ApiError } from '../api/client';
 import { testsApi, type AttemptResult, type Option } from '../api/tests.api';
 import { track } from '../analytics/ga';
+import { RichText } from '../components/RichText';
 
 /**
  * The scorecard: headline score, the three outcome tiles, and the full
@@ -48,8 +48,7 @@ export function ResultsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-paper text-ink">
-        <AppHeader />
+      <div className="w-full px-5 sm:px-8 lg:px-10">
         <p className="mt-16 text-center text-ink-soft">{error}</p>
         <p className="mt-4 text-center">
           <Link to="/mock-tests" className="font-medium text-plum underline underline-offset-4">
@@ -62,8 +61,7 @@ export function ResultsPage() {
 
   if (!result) {
     return (
-      <div className="min-h-screen bg-paper text-ink">
-        <AppHeader />
+      <div className="w-full px-5 sm:px-8 lg:px-10">
         <p className="mt-16 text-center text-ink-faint">Scoring your test…</p>
       </div>
     );
@@ -78,11 +76,9 @@ export function ResultsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <AppHeader />
-
-      <motion.main
-        className="mx-auto max-w-4xl px-6 pb-16 sm:px-10"
+    <div className="w-full">
+      <motion.div
+        className="mx-auto w-full max-w-[80rem] px-5 pt-6 pb-16 sm:px-8 lg:px-10"
         initial="hidden"
         animate="visible"
         variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.09 } } }}
@@ -151,7 +147,7 @@ export function ResultsPage() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <p className="text-[0.95rem] leading-relaxed font-medium">
-                    <span className="text-ink-faint">{q.position}.</span> {q.questionText}
+                    <span className="text-ink-faint">{q.position}.</span> <RichText>{q.questionText}</RichText>
                   </p>
                   <span
                     className={`shrink-0 rounded-bubble px-2.5 py-1 text-[0.7rem] font-semibold ${
@@ -192,7 +188,7 @@ export function ResultsPage() {
                         >
                           {option}
                         </span>
-                        {q.options[option]}
+                        <RichText>{q.options[option]}</RichText>
                         {isChosen && !isCorrect ? (
                           <span className="ml-auto text-[0.7rem] text-danger">your answer</span>
                         ) : null}
@@ -213,7 +209,7 @@ export function ResultsPage() {
             Back to tests
           </Link>
         </motion.div>
-      </motion.main>
+      </motion.div>
     </div>
   );
 }

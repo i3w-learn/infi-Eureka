@@ -14,12 +14,23 @@ function listSql(where: string): string {
 }
 
 export class TestDao implements ITestDao {
+  /** Free sample first — it leads the shelf, since it is what sells the rest. */
   async list(): Promise<TestListRow[]> {
-    const result = await query<TestListRow>(`${listSql('')} ORDER BY t.subject, t.title`);
+    const result = await query<TestListRow>(
+      `${listSql('')} ORDER BY t.is_free_sample DESC, t.title`,
+    );
     return result.rows;
   }
 
   async findById(id: string): Promise<TestListRow | null> {
     return queryOne<TestListRow>(listSql('WHERE t.id = $1'), [id]);
+  }
+
+  async isFreeSample(id: string): Promise<boolean> {
+    const row = await queryOne<{ is_free_sample: boolean }>(
+      'SELECT is_free_sample FROM tests WHERE id = $1',
+      [id],
+    );
+    return row?.is_free_sample ?? false;
   }
 }

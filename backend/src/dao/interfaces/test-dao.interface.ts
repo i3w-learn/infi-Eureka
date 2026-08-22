@@ -5,4 +5,6 @@ export interface ITestDao {
   /** Tests with their question count and total marks (FR-T-01). */
   list(): Promise<TestListRow[]>;
   findById(id: string): Promise<TestListRow | null>;
+  /** Whether this test is open without payment. */
+  isFreeSample(id: string): Promise<boolean>;
 }

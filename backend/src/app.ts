@@ -66,7 +66,13 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   );
 
-  await app.register(authGuards, { userDao: container.userDao });
+  await app.register(authGuards, {
+    userDao: container.userDao,
+    testDao: container.testDao,
+    attemptDao: container.attemptDao,
+    libraryDao: container.libraryDao,
+    videoDao: container.videoDao,
+  });
 
   registerErrorHandler(app);
   await registerRoutes(app);

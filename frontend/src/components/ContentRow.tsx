@@ -15,9 +15,15 @@ interface ContentRowProps {
   kind: ContentKind;
   /** Paid user — no locks anywhere. */
   isPremium: boolean;
+  /**
+   * Where an unlocked card leads. Without it a card just opens the catalogue,
+   * which is right for sections whose detail page does not exist yet. Locked
+   * cards always go to /unlock regardless.
+   */
+  itemTo?: (item: ContentItem) => string;
 }
 
-export function ContentRow({ title, viewAllTo, items, kind, isPremium }: ContentRowProps) {
+export function ContentRow({ title, viewAllTo, items, kind, isPremium, itemTo }: ContentRowProps) {
   return (
     <section className="mt-10">
       <div className="flex items-baseline justify-between">
@@ -31,19 +37,28 @@ export function ContentRow({ title, viewAllTo, items, kind, isPremium }: Content
       </div>
 
       <div className="-mx-1 mt-4 flex snap-x gap-4 overflow-x-auto px-1 pb-3">
-        {items.map((item, index) => (
-          <motion.div
-            key={item.id}
-            className="snap-start self-stretch"
-            whileHover={{ y: -4 }}
-            initial={{ opacity: 0, x: 32 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ delay: index * 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <ContentCard item={item} kind={kind} isPremium={isPremium} to={viewAllTo} fixedWidth />
-          </motion.div>
-        ))}
+        {items.map((item, index) => {
+          const locked = !isPremium && !item.free;
+          return (
+            <motion.div
+              key={item.id}
+              className="snap-start self-stretch"
+              whileHover={{ y: -4 }}
+              initial={{ opacity: 0, x: 32 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ delay: index * 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <ContentCard
+                item={item}
+                kind={kind}
+                isPremium={isPremium}
+                to={locked ? '/unlock' : (itemTo?.(item) ?? viewAllTo)}
+                fixedWidth
+              />
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );

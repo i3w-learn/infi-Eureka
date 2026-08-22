@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { AppHeader } from './AppHeader';
 import { ContentCard, cardMotion, cardEntrance, type ContentKind } from './ContentCard';
 import { useAuth } from '../hooks/useAuth';
 import type { ContentItem, Subject } from '../lib/sample-content';
@@ -36,10 +35,8 @@ export function CatalogPage({ title, subtitle, items, kind, detailBase, detailSu
   const showsMixed = items.some((item) => item.subject === 'mixed');
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <AppHeader />
-
-      <main className="mx-auto max-w-6xl px-6 pb-16 sm:px-10">
+    <div className="w-full px-5 pt-6 pb-16 sm:px-8 lg:px-10">
+      <div className="w-full">
         <motion.h1
           className="mt-4 font-display text-[1.9rem] leading-tight font-extrabold tracking-tight sm:text-[2.3rem]"
           initial={{ opacity: 0, y: 16 }}
@@ -94,7 +91,7 @@ export function CatalogPage({ title, subtitle, items, kind, detailBase, detailSu
             Nothing here for this subject yet. Try another filter.
           </p>
         ) : (
-          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {visible.map((item, index) => {
               const locked = !isPremium && !item.free;
               return (
@@ -110,7 +107,7 @@ export function CatalogPage({ title, subtitle, items, kind, detailBase, detailSu
             })}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

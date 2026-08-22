@@ -14,6 +14,8 @@ export interface TestSummary {
   durationMinutes: number;
   questionCount: number;
   totalMarks: number;
+  /** Open without paying. Exactly one test carries this. */
+  isFreeSample: boolean;
 }
 
 export interface LiveQuestion {
@@ -23,6 +25,11 @@ export interface LiveQuestion {
   options: { A: string; B: string; C: string; D: string };
   marks: number;
   negativeMarks: number;
+  /** NEET subject tab this question sits under, e.g. 'Botany'. Null on papers
+      seeded without a subject breakdown — the screen then shows one flat list. */
+  subject: string | null;
+  /** 'A' is compulsory, 'B' is "attempt any 10". Null alongside `subject`. */
+  section: 'A' | 'B' | null;
 }
 
 export type Option = 'A' | 'B' | 'C' | 'D';
@@ -67,6 +74,9 @@ export interface AttemptResult extends ScoreSummary {
 
 export const testsApi = {
   list: () => apiRequest<TestSummary[]>('/tests'),
+
+  /** One test's headline details — the exam screen shows its title. */
+  get: (testId: string) => apiRequest<TestSummary>(`/tests/${testId}`),
 
   /** Starts a new attempt — or returns the live one, so reloads resume. */
   startAttempt: (testId: string) =>

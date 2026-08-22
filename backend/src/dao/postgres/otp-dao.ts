@@ -2,6 +2,14 @@ import { query, queryOne } from '../../config/db.js';
 import type { OtpChallengeRow } from '../../models/user.js';
 import type { IOtpDao } from '../interfaces/otp-dao.interface.js';
 
+/**
+ * `challenge_token` is a UUID column, so Postgres rejects anything that is not
+ * one with a type error rather than an empty result. A caller sending a
+ * malformed token is just wrong, not exceptional, so it has to read as
+ * "no such challenge" instead of surfacing as a 500.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class OtpDao implements IOtpDao {
   async createChallenge(phone: string, otpHash: string, expiresAt: Date): Promise<string> {
     const row = await queryOne<{ challenge_token: string }>(
@@ -14,6 +22,7 @@ export class OtpDao implements IOtpDao {
   }
 
   async findChallenge(challengeToken: string, phone: string): Promise<OtpChallengeRow | null> {
+    if (!UUID_RE.test(challengeToken)) return null;
     return queryOne<OtpChallengeRow>(
       'SELECT * FROM otp_challenges WHERE challenge_token = $1 AND phone = $2',
       [challengeToken, phone],

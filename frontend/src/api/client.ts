@@ -4,7 +4,7 @@ const TOKEN_KEY = 'infi_eureka_token';
  * Where the API lives. Empty in development because the Vite proxy forwards
  * /api/v1 to the backend; a production build sets the real origin.
  */
-const API_BASE = (import.meta.env['VITE_API_URL'] as string | undefined) ?? '/api/v1';
+export const API_BASE = (import.meta.env['VITE_API_URL'] as string | undefined) ?? '/api/v1';
 
 export const tokenStore = {
   get: (): string | null => localStorage.getItem(TOKEN_KEY),

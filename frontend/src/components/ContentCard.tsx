@@ -13,6 +13,16 @@ export const SUBJECT_STYLE: Record<Subject, { label: string; cover: string; chip
     cover: 'linear-gradient(135deg, #1e7a4d 0%, #14532d 100%)',
     chip: 'bg-[#e5f3ec] text-[#1e7a4d]',
   },
+  botany: {
+    label: 'Botany',
+    cover: 'linear-gradient(135deg, #3f8f57 0%, #1d5231 100%)',
+    chip: 'bg-[#e7f2ea] text-[#2f6b42]',
+  },
+  zoology: {
+    label: 'Zoology',
+    cover: 'linear-gradient(135deg, #2c7f7a 0%, #10403f 100%)',
+    chip: 'bg-[#e2f1f0] text-[#226b67]',
+  },
   physics: {
     label: 'Physics',
     cover: 'linear-gradient(135deg, #6d4585 0%, #2c1540 100%)',

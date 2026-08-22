@@ -2,24 +2,31 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { ApiError } from '../api/client';
-import { testsApi, type AttemptState, type Option } from '../api/tests.api';
+import { testsApi, type AttemptState, type LiveQuestion, type Option } from '../api/tests.api';
+import { RichText } from '../components/RichText';
 
 /**
- * The CBT exam screen: timer, question, OMR options, mark-for-review, and the
- * question palette. UX ported from the proven InfiNotes mock-test flow, with
- * its two known bugs fixed here:
+ * The CBT exam screen: timer, subject tabs, question, OMR options,
+ * mark-for-review, and the grouped question palette.
+ *
+ * The layout is ported from the InfiNotes mock-test player, which students
+ * have already sat full papers on. Two things it got wrong are fixed here:
  *
  * 1. Auto-submit at time-up goes through a ref, so it submits the CURRENT
  *    answers (the original captured a stale empty state and scored 0).
  * 2. The clock counts down from the server's `secondsRemaining` and the
  *    server enforces `expiresAt` — reloading or editing the client cannot buy
- *    time.
+ *    time. The original trusted localStorage.
  *
  * Deliberately animation-free where it matters: switching questions and
  * picking answers is instant. A student racing a timer needs response, not
  * choreography.
  */
 const OPTIONS: Option[] = ['A', 'B', 'C', 'D'];
+
+/** Under 10 minutes the clock turns red and pulses; under 30 it turns amber. */
+const CRITICAL_SECONDS = 10 * 60;
+const WARNING_SECONDS = 30 * 60;
 
 function formatClock(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
@@ -28,11 +35,61 @@ function formatClock(totalSeconds: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
+/** How a question shows up in the palette. */
+type CellStatus = 'unvisited' | 'seen' | 'answered' | 'review' | 'answered-review';
+
+interface PaletteQuestion {
+  question: LiveQuestion;
+  /** Index into the flat, position-sorted question list. */
+  index: number;
+}
+
+interface SubjectGroup {
+  /** Null on papers with no subject breakdown — then there is only one group. */
+  subject: string | null;
+  sections: { section: 'A' | 'B' | null; questions: PaletteQuestion[] }[];
+  /** Where the subject tab jumps to. */
+  firstIndex: number;
+  total: number;
+}
+
+/**
+ * Buckets the paper into subject → section, keeping the order questions appear
+ * in. NEET papers are contiguous blocks (Botany 1-45, Zoology 46-90, …), which
+ * is why Next/Previous can stay simple index arithmetic and still walk from one
+ * subject into the next the way the tabs suggest.
+ */
+function groupQuestions(questions: readonly LiveQuestion[]): SubjectGroup[] {
+  const groups: SubjectGroup[] = [];
+
+  questions.forEach((question, index) => {
+    const subject = question.subject ?? null;
+    let group = groups.find((g) => g.subject === subject);
+    if (!group) {
+      group = { subject, sections: [], firstIndex: index, total: 0 };
+      groups.push(group);
+    }
+
+    const section = question.section ?? null;
+    let bucket = group.sections.find((s) => s.section === section);
+    if (!bucket) {
+      bucket = { section, questions: [] };
+      group.sections.push(bucket);
+    }
+
+    bucket.questions.push({ question, index });
+    group.total += 1;
+  });
+
+  return groups;
+}
+
 export function TestAttemptPage() {
   const { testId } = useParams<{ testId: string }>();
   const navigate = useNavigate();
 
   const [attempt, setAttempt] = useState<AttemptState | null>(null);
+  const [title, setTitle] = useState('Mock test');
   const [loadError, setLoadError] = useState<string>();
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Option | null>>({});
@@ -42,6 +99,7 @@ export function TestAttemptPage() {
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveWarning, setSaveWarning] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // ---- Load / resume ----
   useEffect(() => {
@@ -79,17 +137,35 @@ export function TestAttemptPage() {
     };
   }, [testId, navigate]);
 
+  // The title is cosmetic, so a failure here must not block the exam.
+  useEffect(() => {
+    if (!testId) return;
+    let cancelled = false;
+    testsApi
+      .get(testId)
+      .then((test) => {
+        if (!cancelled) setTitle(test.title);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [testId]);
+
   const questions = useMemo(
     () => (attempt ? [...attempt.questions].sort((a, b) => a.position - b.position) : []),
     [attempt],
   );
   const question = questions[current];
+  const groups = useMemo(() => groupQuestions(questions), [questions]);
 
   /** Navigate to a question, recording it as seen for the palette. */
   const goTo = useCallback(
     (index: number) => {
-      setCurrent(index);
-      const target = questions[index];
+      const clamped = Math.min(Math.max(index, 0), questions.length - 1);
+      setCurrent(clamped);
+      setPaletteOpen(false);
+      const target = questions[clamped];
       if (target) {
         setVisited((prev) => (prev.has(target.id) ? prev : new Set(prev).add(target.id)));
       }
@@ -165,17 +241,29 @@ export function TestAttemptPage() {
 
   const answeredCount = Object.values(answers).filter(Boolean).length;
 
+  function statusOf(q: LiveQuestion): CellStatus {
+    const answered = Boolean(answers[q.id]);
+    const isMarked = marked.has(q.id);
+    if (answered && isMarked) return 'answered-review';
+    if (answered) return 'answered';
+    if (isMarked) return 'review';
+    return visited.has(q.id) ? 'seen' : 'unvisited';
+  }
+
+  function answeredIn(group: SubjectGroup): number {
+    return group.sections.reduce(
+      (sum, s) => sum + s.questions.filter(({ question: q }) => answers[q.id]).length,
+      0,
+    );
+  }
+
   // ---- Render states ----
   if (loadError) {
     return (
-      <div className="grid min-h-screen place-items-center bg-paper px-6 text-center">
+      <div className="cbt grid min-h-screen place-items-center bg-paper px-6 text-center">
         <div>
           <p className="text-ink-soft">{loadError}</p>
-          <button
-            type="button"
-            onClick={() => navigate('/mock-tests')}
-            className="mt-4 rounded-xl bg-plum px-5 py-2.5 font-medium text-white"
-          >
+          <button type="button" onClick={() => navigate('/mock-tests')} className="cbt-btn mt-5">
             Back to tests
           </button>
         </div>
@@ -192,161 +280,270 @@ export function TestAttemptPage() {
   }
 
   const timerTone =
-    secondsLeft <= 120 ? 'bg-danger text-white' : secondsLeft <= 600 ? 'bg-marigold text-white' : 'bg-plum text-white';
+    secondsLeft <= CRITICAL_SECONDS ? 'critical' : secondsLeft <= WARNING_SECONDS ? 'warning' : 'normal';
+  const currentSubject = question.subject ?? null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-paper text-ink">
-      {/* ---- Exam header: title left, clock right. Nothing else. ---- */}
-      <header className="sticky top-0 z-10 border-b border-paper-edge bg-paper/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
-          <p className="truncate font-display text-[1.05rem] font-bold">Mock test in progress</p>
-          <p
+    <div className="cbt flex min-h-screen flex-col bg-paper lg:h-screen lg:overflow-hidden">
+      {/* ---- Header: paper, clock, submit — then the subject tabs ---- */}
+      <header className="cbt-header z-30 shrink-0">
+        <div className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 sm:px-6 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <img
+              src="/i3w-mark.png"
+              alt=""
+              aria-hidden="true"
+              className="hidden h-8 w-auto shrink-0 sm:block"
+            />
+            <span className="truncate font-display text-sm font-bold sm:text-base">{title}</span>
+          </div>
+
+          <div
             data-testid="test-timer"
-            className={`rounded-xl px-4 py-1.5 font-sans text-[1.05rem] font-semibold tabular-nums ${timerTone}`}
+            data-tone={timerTone}
+            className="cbt-timer order-last col-span-2 flex items-center justify-center gap-2 text-xl font-bold md:order-none md:col-span-1 sm:text-2xl"
+            role="timer"
+            aria-live="off"
           >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 opacity-60" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path d="M12 7v5l3 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
             {formatClock(secondsLeft)}
-          </p>
-        </div>
-      </header>
-
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[1fr_16rem]">
-        {/* ---- Question area ---- */}
-        <main>
-          <div className="flex items-baseline justify-between">
-            <p className="text-sm font-semibold text-ink-soft">
-              Question {question.position} <span className="text-ink-faint">of {questions.length}</span>
-            </p>
-            <p className="text-[0.78rem] text-ink-faint">
-              +{question.marks} · −{question.negativeMarks}
-            </p>
           </div>
 
-          <p className="mt-3 text-[1.05rem] leading-relaxed font-medium">{question.questionText}</p>
-
-          <div className="mt-6 space-y-3">
-            {OPTIONS.map((option) => {
-              const selected = answers[question.id] === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  data-testid={`option-${option.toLowerCase()}`}
-                  onClick={() => choose(option)}
-                  aria-pressed={selected}
-                  className={`flex w-full items-center gap-4 rounded-2xl border-2 bg-white px-4 py-3.5 text-left transition-colors ${
-                    selected ? 'border-marigold bg-marigold-wash' : 'border-paper-edge hover:border-ink-faint'
-                  }`}
-                >
-                  <span
-                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-bubble border-2 text-[0.8rem] font-bold ${
-                      selected ? 'border-marigold bg-marigold text-white' : 'border-ink-faint/50 text-ink-soft'
-                    }`}
-                  >
-                    {option}
-                  </span>
-                  <span className="text-[0.98rem]">{question.options[option]}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {saveWarning ? (
-            <p role="alert" className="mt-4 text-sm text-danger">
-              Could not reach the server — your last action may not be saved. Check your connection.
-            </p>
-          ) : null}
-
-          {/* ---- Question actions ---- */}
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => goTo(Math.max(0, current - 1))}
-              disabled={current === 0}
-              className="rounded-xl border border-paper-edge bg-white px-4 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:border-ink-faint disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => setPaletteOpen(true)}
+              className="cbt-btn px-3 lg:hidden"
+              aria-label="Open question navigator"
             >
-              ← Previous
-            </button>
-            <button
-              type="button"
-              data-testid="mark-review"
-              onClick={toggleMarked}
-              aria-pressed={marked.has(question.id)}
-              className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
-                marked.has(question.id)
-                  ? 'border-plum bg-plum text-white'
-                  : 'border-paper-edge bg-white text-ink-soft hover:border-plum'
-              }`}
-            >
-              {marked.has(question.id) ? 'Marked for review ✓' : 'Mark for review'}
-            </button>
-            <button
-              type="button"
-              onClick={() => goTo(Math.min(questions.length - 1, current + 1))}
-              disabled={current === questions.length - 1}
-              className="rounded-xl bg-plum px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next →
+              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                <path
+                  d="M5 3v18M5 4h11l-2 3 2 3H5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
             <button
               type="button"
               data-testid="open-submit"
+              data-variant="primary"
               onClick={() => setConfirming(true)}
-              className="ml-auto rounded-xl bg-gradient-to-b from-[#f8823c] to-marigold px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(239,113,38,0.7)]"
+              className="cbt-btn"
             >
-              Submit test
+              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                <path d="M3 11l18-8-8 18-2-8-8-2z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              </svg>
+              Submit
             </button>
+          </div>
+        </div>
+
+        {/* Subject tabs. Hidden on a paper with no subject breakdown, where a
+            single "All questions" tab would say nothing. */}
+        {groups.length > 1 ? (
+          <div className="flex gap-3 overflow-x-auto px-3 pb-3 sm:px-6">
+            {groups.map((group) => (
+              <button
+                key={group.subject ?? 'all'}
+                type="button"
+                data-testid={`subject-tab-${(group.subject ?? 'all').toLowerCase()}`}
+                data-current={group.subject === currentSubject}
+                onClick={() => goTo(group.firstIndex)}
+                className="cbt-btn cbt-tab text-xs sm:text-sm"
+              >
+                {group.subject ?? 'All questions'}
+                <span className="opacity-70">
+                  {answeredIn(group)}/{group.total}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </header>
+
+      <div className="flex flex-1 flex-col lg:flex-row lg:overflow-hidden">
+        {/* ---- Question area ---- */}
+        <main className="flex-1 p-4 sm:p-6 lg:overflow-y-auto lg:p-8">
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              {question.section ? (
+                <span className="text-sm font-semibold text-ink-soft">
+                  Section {question.section}
+                  {question.section === 'B' ? ' (attempt any 10)' : ''}
+                </span>
+              ) : null}
+              <span className="text-sm font-semibold text-marigold">
+                +{question.marks} / −{question.negativeMarks}
+              </span>
+            </div>
+
+            <div className="mb-3 flex items-center gap-3">
+              <span className="rounded-bubble border border-marigold/25 bg-marigold-wash px-2.5 py-1 text-sm font-semibold text-marigold">
+                Q{question.position}
+              </span>
+              {question.subject ? (
+                <span className="text-xs text-ink-faint">{question.subject}</span>
+              ) : null}
+            </div>
+
+            <div className="mb-7 text-base leading-relaxed sm:text-lg">
+              <RichText>{question.questionText}</RichText>
+            </div>
+
+            <div className="mb-8 space-y-5">
+              {OPTIONS.map((option) => {
+                const selected = answers[question.id] === option;
+                return (
+                  <button
+                    // Keyed by question too, so React mounts fresh buttons per
+                    // question. Sharing them lets the selected -> unselected
+                    // colour transition run on the NEXT question, flashing an
+                    // answer the student never gave.
+                    key={`${question.id}-${option}`}
+                    type="button"
+                    data-testid={`option-${option.toLowerCase()}`}
+                    data-selected={selected}
+                    onClick={() => choose(option)}
+                    aria-pressed={selected}
+                    className="cbt-option"
+                  >
+                    <span className="cbt-option-key">{option}</span>
+                    <span className="flex-1 self-center text-sm leading-7 sm:text-base">
+                      <RichText>{question.options[option]}</RichText>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {saveWarning ? (
+              <p role="alert" className="mb-5 text-sm text-danger">
+                Could not reach the server — your last action may not be saved. Check your connection.
+              </p>
+            ) : null}
+
+            {/* ---- Previous · Mark for review · Next ---- */}
+            <div className="flex flex-col items-stretch justify-between gap-3 pb-8 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => goTo(current - 1)}
+                disabled={current === 0}
+                className="cbt-btn"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                  <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Previous
+              </button>
+
+              <button
+                type="button"
+                data-testid="mark-review"
+                data-variant="ghost"
+                data-active={marked.has(question.id)}
+                onClick={toggleMarked}
+                aria-pressed={marked.has(question.id)}
+                className="cbt-btn"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                  <path d="M5 21V4h13l-2.5 4.5L18 13H5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                </svg>
+                {marked.has(question.id) ? 'Unmark' : 'Mark for Review'}
+              </button>
+
+              <button
+                type="button"
+                data-variant="primary"
+                onClick={() => goTo(current + 1)}
+                disabled={current === questions.length - 1}
+                className="cbt-btn"
+              >
+                Next
+                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                  <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
           </div>
         </main>
 
-        {/* ---- Question palette ---- */}
-        <aside className="rounded-2xl border border-paper-edge bg-white p-4 self-start lg:sticky lg:top-20">
-          <p className="text-sm font-semibold">Questions</p>
-          <div className="mt-3 grid grid-cols-6 gap-1.5 sm:grid-cols-8 lg:grid-cols-5">
-            {questions.map((q, index) => {
-              const answered = Boolean(answers[q.id]);
-              const isMarked = marked.has(q.id);
-              const isCurrent = index === current;
-              const seen = visited.has(q.id);
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => goTo(index)}
-                  aria-label={`Question ${q.position}`}
-                  aria-current={isCurrent || undefined}
-                  className={`relative grid h-9 w-9 place-items-center rounded-bubble border text-[0.75rem] font-semibold transition-colors ${
-                    isCurrent
-                      ? 'border-ink bg-ink text-white'
-                      : answered
-                        ? 'border-marigold bg-marigold text-white'
-                        : seen
-                          ? 'border-ink-faint/60 bg-paper-warm text-ink-soft'
-                          : 'border-paper-edge bg-white text-ink-faint'
-                  }`}
-                >
-                  {q.position}
-                  {isMarked ? (
-                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-bubble border border-white bg-plum" />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
+        {/* ---- Question palette: a column on desktop, a sheet on mobile ---- */}
+        <aside
+          className={`cbt-palette w-full shrink-0 lg:block lg:w-[19rem] lg:overflow-y-auto ${
+            // lg:static undoes the sheet if the viewport widens while it is
+            // open — otherwise a rotate turns the desktop column into a
+            // full-screen overlay covering the paper.
+            paletteOpen ? 'fixed inset-0 z-40 overflow-y-auto lg:static lg:z-auto' : 'hidden'
+          }`}
+        >
+          {paletteOpen ? (
+            <div className="sticky top-0 flex items-center justify-between border-b border-[#1d2433] bg-[var(--color-paper-warm)] p-3 lg:hidden">
+              <span className="text-sm font-semibold">Question navigator</span>
+              <button type="button" onClick={() => setPaletteOpen(false)} className="cbt-btn px-4 text-sm">
+                Close
+              </button>
+            </div>
+          ) : null}
 
-          <ul className="mt-4 space-y-1.5 border-t border-paper-edge pt-3 text-[0.72rem] text-ink-soft">
-            <li className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-bubble bg-marigold" /> Answered ({answeredCount})
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-bubble border border-ink-faint/60 bg-paper-warm" /> Seen, not answered
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-bubble border border-paper-edge bg-white" /> Not seen yet
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-bubble bg-plum" /> Marked for review ({marked.size})
-            </li>
-          </ul>
+          <div className="p-4">
+            <div className="mb-5 grid grid-cols-2 gap-2 text-xs text-ink-soft">
+              <span className="flex items-center gap-1.5">
+                <span className="cbt-swatch" style={{ background: 'var(--cbt-unvisited)' }} /> Not visited
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="cbt-swatch" style={{ background: 'color-mix(in srgb, var(--cbt-answered) 40%, white)' }} />{' '}
+                Answered ({answeredCount})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="cbt-swatch" style={{ background: 'color-mix(in srgb, var(--cbt-review) 40%, white)' }} />{' '}
+                Review ({marked.size})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="cbt-swatch" style={{ background: 'color-mix(in srgb, var(--cbt-both) 40%, white)' }} /> Ans+Review
+              </span>
+            </div>
+
+            {groups.map((group) => (
+              <div key={group.subject ?? 'all'} className="mb-6">
+                {group.subject ? (
+                  <p className="mb-3 text-base font-semibold">{group.subject}</p>
+                ) : null}
+
+                {group.sections.map((bucket) => (
+                  <div key={bucket.section ?? 'none'} className="mb-3">
+                    {bucket.section ? (
+                      <p className="mb-2 text-sm text-ink-faint">
+                        Section {bucket.section}
+                        {bucket.section === 'B' ? ' (any 10)' : ''}
+                      </p>
+                    ) : null}
+                    <div className="grid grid-cols-7 gap-2">
+                      {bucket.questions.map(({ question: q, index }) => (
+                        <button
+                          key={q.id}
+                          type="button"
+                          onClick={() => goTo(index)}
+                          data-status={statusOf(q)}
+                          data-current={index === current}
+                          aria-label={`Question ${q.position}`}
+                          aria-current={index === current || undefined}
+                          className="cbt-cell"
+                        >
+                          {q.position}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </aside>
       </div>
 
@@ -367,7 +564,7 @@ export function TestAttemptPage() {
               role="dialog"
               aria-modal="true"
               aria-label="Submit test"
-              className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-white p-7 shadow-2xl"
+              className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-[#1d2433] bg-[#fffdf8] p-7 shadow-[6px_6px_0_#1d2433]"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -377,33 +574,36 @@ export function TestAttemptPage() {
               <p className="mt-2 text-sm leading-relaxed text-ink-soft">
                 Once submitted, answers are final and you'll see your score immediately.
               </p>
-              <ul className="mt-4 space-y-1 rounded-2xl bg-paper p-4 text-sm text-ink-soft">
-                <li>
-                  Answered: <strong className="text-ink">{answeredCount}</strong> of {questions.length}
-                </li>
-                <li>
-                  Unanswered: <strong className="text-ink">{questions.length - answeredCount}</strong>
-                </li>
-                <li>
-                  Marked for review: <strong className="text-ink">{marked.size}</strong>
-                </li>
-              </ul>
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setConfirming(false)}
-                  className="flex-1 rounded-xl border border-paper-edge px-4 py-3 font-medium text-ink-soft transition-colors hover:border-ink-faint"
-                >
+
+              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                {[
+                  { label: 'Answered', value: answeredCount, tone: 'var(--cbt-answered)' },
+                  { label: 'Unanswered', value: questions.length - answeredCount, tone: 'var(--color-danger)' },
+                  { label: 'Marked for review', value: marked.size, tone: 'var(--cbt-review)' },
+                  { label: 'Time left', value: formatClock(secondsLeft), tone: 'var(--cbt-ink)' },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-2xl border border-[#1d2433] bg-white p-3">
+                    <p className="text-xs text-ink-faint">{stat.label}</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: stat.tone }}>
+                      {stat.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={() => setConfirming(false)} className="cbt-btn flex-1">
                   Keep going
                 </button>
                 <button
                   type="button"
                   data-testid="confirm-submit"
+                  data-variant="primary"
                   onClick={() => void doSubmit()}
                   disabled={submitting}
-                  className="flex-1 rounded-xl bg-gradient-to-b from-[#f8823c] to-marigold px-4 py-3 font-semibold text-white disabled:opacity-60"
+                  className="cbt-btn flex-1"
                 >
-                  {submitting ? 'Submitting…' : 'Submit'}
+                  {submitting ? 'Submitting…' : 'Submit test'}
                 </button>
               </div>
             </motion.div>

@@ -1,15 +1,21 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { AppHeader } from '../components/AppHeader';
 import { ContentRow } from '../components/ContentRow';
 import { useAuth } from '../hooks/useAuth';
-import { SAMPLE_NOTES, SAMPLE_TESTS, SAMPLE_VIDEOS } from '../lib/sample-content';
+import { useMockTests } from '../hooks/useMockTests';
+import { useLibrary } from '../hooks/useLibrary';
+import { useVideos } from '../hooks/useVideos';
 
 /**
- * The logged-in home: content shelves, browsable by everyone. The first item
- * of each shelf is free; the rest unlock with payment. Rows currently render
- * sample data — they switch to the content API when it exists.
+ * The logged-in home: content shelves, browsable by everyone. One item per
+ * shelf is free; the rest unlock with payment.
+ *
+ * Every shelf comes from the real API: it shows the first few and "View all"
+ * opens the whole catalogue.
  */
+
+/** A shelf teases; the catalogue lists. Anything past this needs "View all". */
+const SHELF_LIMIT = 5;
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const rise = {
@@ -19,14 +25,16 @@ const rise = {
 
 export function DashboardPage() {
   const { user, isPremium } = useAuth();
+  const { items: tests } = useMockTests();
+  const { items: videos } = useVideos();
+  const { items: formulaSheets } = useLibrary('formula_sheet');
+  const { items: ncertHighlights } = useLibrary('ncert_highlight');
   const firstName = (user?.name ?? 'Student').split(' ')[0];
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <AppHeader />
-
-      <motion.main
-        className="mx-auto max-w-6xl px-6 pb-16 sm:px-10"
+    <div className="w-full">
+      <motion.div
+        className="w-full px-5 pt-6 pb-16 sm:px-8 lg:px-10"
         initial="hidden"
         animate="visible"
         variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
@@ -86,19 +94,32 @@ export function DashboardPage() {
           <ContentRow
             title="One-shot videos"
             viewAllTo="/videos"
-            items={SAMPLE_VIDEOS}
+            items={(videos ?? []).slice(0, SHELF_LIMIT)}
             kind="video"
             isPremium={isPremium}
+            itemTo={(item) => `/videos/${item.id}`}
           />
         </motion.div>
 
         <motion.div variants={rise}>
           <ContentRow
-            title="Notes & highlights"
-            viewAllTo="/notes"
-            items={SAMPLE_NOTES}
+            title="Formula sheets"
+            viewAllTo="/formula-sheets"
+            items={(formulaSheets ?? []).slice(0, SHELF_LIMIT)}
             kind="note"
             isPremium={isPremium}
+            itemTo={(item) => `/formula-sheets/${item.id}`}
+          />
+        </motion.div>
+
+        <motion.div variants={rise}>
+          <ContentRow
+            title="NCERT highlights"
+            viewAllTo="/ncert-highlights"
+            items={(ncertHighlights ?? []).slice(0, SHELF_LIMIT)}
+            kind="note"
+            isPremium={isPremium}
+            itemTo={(item) => `/ncert-highlights/${item.id}`}
           />
         </motion.div>
 
@@ -106,7 +127,7 @@ export function DashboardPage() {
           <ContentRow
             title="CBT mock tests"
             viewAllTo="/mock-tests"
-            items={SAMPLE_TESTS}
+            items={(tests ?? []).slice(0, SHELF_LIMIT)}
             kind="test"
             isPremium={isPremium}
           />
@@ -115,7 +136,7 @@ export function DashboardPage() {
         <motion.p variants={rise} className="mt-10 text-center text-sm text-ink-faint">
           NEET: 720 marks · Physics 180 · Chemistry 180 · Biology 360
         </motion.p>
-      </motion.main>
+      </motion.div>
     </div>
   );
 }

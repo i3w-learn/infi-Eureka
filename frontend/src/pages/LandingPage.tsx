@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BrandMark } from '../components/BrandMark';
 import { motion } from 'motion/react';
 import { AnswerSheet } from '../components/AnswerSheet';
 import { FeatureMenu } from '../components/FeatureMenu';
@@ -46,15 +47,8 @@ const PAPER = [
 
 function Logo() {
   return (
-    <Link to="/" className="inline-flex items-center gap-3 rounded-lg text-ink transition-opacity hover:opacity-70">
-      <span className="grid h-10 w-10 place-items-center rounded-bubble bg-plum shadow-[0_6px_18px_rgba(76,42,94,0.4)]">
-        <span className="grid h-5 w-5 place-items-center rounded-bubble border-2 border-white/30">
-          <span className="h-2.5 w-2.5 rounded-bubble bg-marigold" />
-        </span>
-      </span>
-      <span className="font-display text-[1.4rem] font-extrabold tracking-tight">
-        infi<span className="text-marigold">-</span>Eureka
-      </span>
+    <Link to="/" className="inline-flex min-w-0 rounded-lg text-ink transition-opacity hover:opacity-70">
+      <BrandMark />
     </Link>
   );
 }

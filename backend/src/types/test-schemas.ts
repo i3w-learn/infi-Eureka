@@ -2,7 +2,15 @@ import { UUID_PATTERN, uuidParam } from './schema-common.js';
 
 const testSummarySchema = {
   type: 'object',
-  required: ['id', 'title', 'subject', 'durationMinutes', 'questionCount', 'totalMarks'],
+  required: [
+    'id',
+    'title',
+    'subject',
+    'durationMinutes',
+    'questionCount',
+    'totalMarks',
+    'isFreeSample',
+  ],
   properties: {
     id: { type: 'string' },
     title: { type: 'string' },
@@ -10,6 +18,7 @@ const testSummarySchema = {
     durationMinutes: { type: 'integer' },
     questionCount: { type: 'integer' },
     totalMarks: { type: 'integer' },
+    isFreeSample: { type: 'boolean' },
   },
 } as const;
 
@@ -20,7 +29,7 @@ const testSummarySchema = {
  */
 const liveQuestionSchema = {
   type: 'object',
-  required: ['id', 'position', 'questionText', 'options', 'marks', 'negativeMarks'],
+  required: ['id', 'position', 'questionText', 'options', 'marks', 'negativeMarks', 'subject', 'section'],
   additionalProperties: false,
   properties: {
     id: { type: 'string' },
@@ -39,6 +48,8 @@ const liveQuestionSchema = {
     },
     marks: { type: 'integer' },
     negativeMarks: { type: 'integer' },
+    subject: { type: ['string', 'null'] },
+    section: { type: ['string', 'null'], enum: ['A', 'B', null] },
   },
 } as const;
 
@@ -157,7 +168,7 @@ export const attemptResultSchema = {
             type: 'object',
             required: [
               'id', 'position', 'questionText', 'options', 'marks', 'negativeMarks',
-              'correctOption', 'chosenOption', 'outcome',
+              'subject', 'section', 'correctOption', 'chosenOption', 'outcome',
             ],
             properties: {
               id: { type: 'string' },
@@ -166,6 +177,8 @@ export const attemptResultSchema = {
               options: liveQuestionSchema.properties.options,
               marks: { type: 'integer' },
               negativeMarks: { type: 'integer' },
+              subject: liveQuestionSchema.properties.subject,
+              section: liveQuestionSchema.properties.section,
               correctOption: { type: 'string', enum: ['A', 'B', 'C', 'D'] },
               chosenOption: { type: ['string', 'null'], enum: ['A', 'B', 'C', 'D', null] },
               outcome: { type: 'string', enum: ['correct', 'wrong', 'unattempted'] },

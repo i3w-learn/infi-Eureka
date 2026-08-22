@@ -9,6 +9,8 @@ export interface TestSummary {
   durationMinutes: number;
   questionCount: number;
   totalMarks: number;
+  /** Open without paying — the catalogue badges this one "Free". */
+  isFreeSample: boolean;
 }
 
 function toSummary(row: TestListRow): TestSummary {
@@ -19,6 +21,7 @@ function toSummary(row: TestListRow): TestSummary {
     durationMinutes: row.duration_minutes,
     questionCount: row.question_count,
     totalMarks: row.total_marks,
+    isFreeSample: row.is_free_sample,
   };
 }
 

@@ -7,7 +7,7 @@ import type { IQuestionDao } from '../interfaces/question-dao.interface.js';
  * `correct_option` in it, on purpose (DR-06). Do not replace it with `*`.
  */
 const SAFE_COLUMNS =
-  'id, test_id, position, question_text, option_a, option_b, option_c, option_d, marks, negative_marks';
+  'id, test_id, position, question_text, option_a, option_b, option_c, option_d, marks, negative_marks, subject, section';
 
 export class QuestionDao implements IQuestionDao {
   async listForAttempt(testId: string): Promise<QuestionRow[]> {

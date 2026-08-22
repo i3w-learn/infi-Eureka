@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { initAnalytics } from './analytics/ga';
+import 'katex/dist/katex.min.css';
 import './styles/global.css';
 
 initAnalytics();

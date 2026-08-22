@@ -36,4 +36,8 @@ export class UserDao implements IUserDao {
     );
     return row?.is_premium ?? false;
   }
+
+  async grantPremium(userId: string): Promise<void> {
+    await query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = $1', [userId]);
+  }
 }

@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'motion/react';
 import { AuthProvider } from './hooks/useAuth';
 import { RequireAuth, RequirePremium } from './components/RouteGuards';
+import { AppShell } from './components/AppShell';
 import { trackPageView } from './analytics/ga';
 
 import { LandingPage } from './pages/LandingPage';
@@ -14,6 +15,9 @@ import { VideosPage } from './pages/VideosPage';
 import { VideoPlayerPage } from './pages/VideoPlayerPage';
 import { NotesPage } from './pages/NotesPage';
 import { NoteReaderPage } from './pages/NoteReaderPage';
+import { FormulaSheetsPage } from './pages/FormulaSheetsPage';
+import { NcertHighlightsPage } from './pages/NcertHighlightsPage';
+import { DocumentReaderPage } from './pages/DocumentReaderPage';
 import { MockTestsPage } from './pages/MockTestsPage';
 import { TestAttemptPage } from './pages/TestAttemptPage';
 import { ResultsPage } from './pages/ResultsPage';
@@ -48,21 +52,39 @@ export function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/login" element={<LoginPage />} />
 
-            {/* Logged in — content is listed, locked items shown greyed out */}
+            {/* Logged in — content is listed, locked items shown greyed out.
+                AppShell wraps these: the left rail is the navigation, and the
+                page below it gets the full width of the screen. */}
             <Route element={<RequireAuth />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/unlock" element={<UnlockPage />} />
-              <Route path="/videos" element={<VideosPage />} />
-              <Route path="/notes" element={<NotesPage />} />
-              <Route path="/mock-tests" element={<MockTestsPage />} />
+              <Route element={<AppShell />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/unlock" element={<UnlockPage />} />
+                <Route path="/videos" element={<VideosPage />} />
+                <Route path="/notes" element={<NotesPage />} />
+                <Route path="/formula-sheets" element={<FormulaSheetsPage />} />
+                <Route path="/ncert-highlights" element={<NcertHighlightsPage />} />
+                <Route path="/mock-tests" element={<MockTestsPage />} />
+                {/*
+                  The readers sit here, not under RequirePremium: the free sample
+                  has to reach GET /library/:id for the server to allow it, and
+                  only the server knows which document is the sample. A locked
+                  student gets a 403 and the page shows the unlock prompt.
+                */}
+                <Route path="/formula-sheets/:documentId" element={<DocumentReaderPage />} />
+                <Route path="/ncert-highlights/:documentId" element={<DocumentReaderPage />} />
+              </Route>
             </Route>
 
             {/* Logged in AND paid — opening the actual content */}
             <Route element={<RequirePremium />}>
-              <Route path="/videos/:videoId" element={<VideoPlayerPage />} />
-              <Route path="/notes/:noteId" element={<NoteReaderPage />} />
+              <Route element={<AppShell />}>
+                <Route path="/videos/:videoId" element={<VideoPlayerPage />} />
+                <Route path="/notes/:noteId" element={<NoteReaderPage />} />
+                <Route path="/results/:attemptId" element={<ResultsPage />} />
+              </Route>
+              {/* No shell during a live paper: a rail of links away from the
+                  question is a way to lose an attempt by accident. */}
               <Route path="/mock-tests/:testId/attempt" element={<TestAttemptPage />} />
-              <Route path="/results/:attemptId" element={<ResultsPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

@@ -38,13 +38,13 @@ export async function videoRoutes(app: FastifyInstance): Promise<void> {
   // back their URL; self-hosted ones a short-lived stream token.
   app.get<{ Params: { id: string } }>(
     '/videos/:id/watch',
-    { schema: watchVideoSchema, onRequest: [app.requirePremium] },
+    { schema: watchVideoSchema, onRequest: [app.requireVideoAccess] },
     async (request) => container.videoService.watch(request.user.sub, request.params.id),
   );
 
   app.get<{ Params: { id: string } }>(
     '/videos/:id/stream-token',
-    { schema: streamTokenSchema, onRequest: [app.requirePremium] },
+    { schema: streamTokenSchema, onRequest: [app.requireVideoAccess] },
     async (request) => container.videoService.issueStreamToken(request.user.sub, request.params.id),
   );
 

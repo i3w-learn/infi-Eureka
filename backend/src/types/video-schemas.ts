@@ -2,7 +2,18 @@ import { subjectQuery, uuidParam } from './schema-common.js';
 
 const videoSummarySchema = {
   type: 'object',
-  required: ['id', 'title', 'subject', 'chapter', 'thumbnailUrl', 'durationSeconds', 'sourceKind'],
+  required: [
+    'id',
+    'title',
+    'subject',
+    'chapter',
+    'thumbnailUrl',
+    'durationSeconds',
+    'sourceKind',
+    'grade',
+    'educatorName',
+    'isFreeSample',
+  ],
   properties: {
     id: { type: 'string' },
     title: { type: 'string' },
@@ -10,7 +21,10 @@ const videoSummarySchema = {
     chapter: { type: 'string' },
     thumbnailUrl: { type: ['string', 'null'] },
     durationSeconds: { type: 'integer' },
-    sourceKind: { type: 'string', enum: ['link', 'file'] },
+    sourceKind: { type: 'string', enum: ['youtube', 'link', 'file'] },
+    grade: { type: ['integer', 'null'] },
+    educatorName: { type: ['string', 'null'] },
+    isFreeSample: { type: 'boolean' },
   },
 } as const;
 
@@ -70,8 +84,13 @@ export const watchVideoSchema = {
       type: 'object',
       required: ['kind'],
       properties: {
-        kind: { type: 'string', enum: ['link', 'stream'] },
+        kind: { type: 'string', enum: ['youtube', 'link', 'stream'] },
+        // youtube
+        videoId: { type: 'string' },
+        embedUrl: { type: 'string' },
+        // link
         url: { type: 'string' },
+        // stream
         token: { type: 'string' },
         expiresIn: { type: 'integer' },
       },

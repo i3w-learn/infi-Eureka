@@ -6,12 +6,14 @@ export class VideoDao implements IVideoDao {
   async list(subject?: string): Promise<VideoRow[]> {
     if (subject) {
       const result = await query<VideoRow>(
-        'SELECT * FROM videos WHERE subject = $1 ORDER BY subject, chapter, title',
+        'SELECT * FROM videos WHERE subject = $1 ORDER BY is_free_sample DESC, chapter, title',
         [subject],
       );
       return result.rows;
     }
-    const result = await query<VideoRow>('SELECT * FROM videos ORDER BY subject, chapter, title');
+    const result = await query<VideoRow>(
+      'SELECT * FROM videos ORDER BY is_free_sample DESC, subject, chapter, title',
+    );
     return result.rows;
   }
 
@@ -38,5 +40,13 @@ export class VideoDao implements IVideoDao {
       ],
     );
     return result.rows[0]!;
+  }
+
+  async isFreeSample(id: string): Promise<boolean> {
+    const row = await queryOne<{ is_free_sample: boolean }>(
+      'SELECT is_free_sample FROM videos WHERE id = $1',
+      [id],
+    );
+    return row?.is_free_sample ?? false;
   }
 }

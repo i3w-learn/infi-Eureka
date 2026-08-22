@@ -11,6 +11,7 @@ import { AttemptDao } from './dao/postgres/attempt-dao.js';
 import { AttemptAnswersDao } from './dao/postgres/attempt-answers-dao.js';
 import { PlanDao } from './dao/postgres/plan-dao.js';
 import { PaymentDao } from './dao/postgres/payment-dao.js';
+import { LibraryDao } from './dao/postgres/library-dao.js';
 import { LocalStorage } from './integrations/storage/local-storage.js';
 import { RazorpayGateway } from './integrations/razorpay/razorpay-gateway.js';
 import { HealthService } from './services/health-service.js';
@@ -20,6 +21,7 @@ import { NoteService } from './services/note-service.js';
 import { TestService } from './services/test-service.js';
 import { AttemptService } from './services/attempt-service.js';
 import { PaymentService } from './services/payment-service.js';
+import { LibraryService } from './services/library-service.js';
 import type { IStorage } from './integrations/storage/storage.interface.js';
 
 /**
@@ -48,6 +50,7 @@ function buildContainer() {
   const attemptAnswersDao = new AttemptAnswersDao();
   const planDao = new PlanDao();
   const paymentDao = new PaymentDao();
+  const libraryDao = new LibraryDao();
 
   const storage = buildStorage();
   const gateway = new RazorpayGateway(env.razorpay.keyId, env.razorpay.keySecret);
@@ -55,12 +58,17 @@ function buildContainer() {
   return {
     // DAOs exposed only where middleware needs them directly.
     userDao,
+    testDao,
+    attemptDao,
+    libraryDao,
+    videoDao,
 
     healthService: new HealthService(healthDao),
     authService: new AuthService(userDao, otpDao),
     videoService: new VideoService(videoDao, storage),
     noteService: new NoteService(noteDao, highlightDao),
     testService: new TestService(testDao),
+    libraryService: new LibraryService(libraryDao),
     attemptService: new AttemptService(testDao, questionDao, attemptDao, attemptAnswersDao),
     paymentService: new PaymentService(planDao, paymentDao, userDao, gateway, {
       keySecret: env.razorpay.keySecret,

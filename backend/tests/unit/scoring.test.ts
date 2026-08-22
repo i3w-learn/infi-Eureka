@@ -14,6 +14,8 @@ function question(id: string, correct: Option, marks = 4, negativeMarks = 1): Qu
     option_d: 'd',
     marks,
     negative_marks: negativeMarks,
+    subject: 'Botany',
+    section: 'A',
     correct_option: correct,
   };
 }

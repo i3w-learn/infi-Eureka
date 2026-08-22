@@ -22,7 +22,8 @@
     "db:reset": "node scripts/db-reset.js",
     "migrate:test": "node-pg-migrate --envPath .env -d TEST_DATABASE_URL -j sql -m migrations/versions up",
     "migrate:status": "npm run migrate -- --dry-run up",
-    "seed:reset": "node scripts/db-reset.js"
+    "seed:reset": "node scripts/db-reset.js",
+    "check:embeddable": "node scripts/check-embeddable.js"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

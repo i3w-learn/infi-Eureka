@@ -22,12 +22,21 @@ export interface VideoSummary {
   chapter: string;
   thumbnailUrl: string | null;
   durationSeconds: number;
-  /** 'link' plays from an external URL; 'file' streams from our storage. */
-  sourceKind: 'link' | 'file';
+  /**
+   * How this lecture plays: 'youtube' embeds the original video, 'link' plays
+   * an external URL directly, 'file' streams our own copy.
+   */
+  sourceKind: 'youtube' | 'link' | 'file';
+  /** 11 or 12; null for a lecture spanning both. */
+  grade: number | null;
+  educatorName: string | null;
+  /** Playable without paying. Exactly one video carries this. */
+  isFreeSample: boolean;
 }
 
 /** What a premium user needs to actually play a video. */
 export type WatchSource =
+  | { kind: 'youtube'; videoId: string; embedUrl: string }
   | { kind: 'link'; url: string }
   | { kind: 'stream'; token: string; expiresIn: number };
 
@@ -60,6 +69,33 @@ export interface VideoStream {
   range?: { start: number; end: number };
 }
 
+/**
+ * Pulls the 11-character id out of any YouTube URL shape the catalogue uses:
+ * youtu.be/ID, watch?v=ID, live/ID and embed/ID all appear in the source data.
+ */
+export function youtubeId(url: string): string | null {
+  const patterns = [
+    /youtu\.be\/([A-Za-z0-9_-]{11})/,
+    /[?&]v=([A-Za-z0-9_-]{11})/,
+    /youtube\.com\/(?:live|embed|shorts)\/([A-Za-z0-9_-]{11})/,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(url);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+/**
+ * Built from the id rather than passed through from the stored URL, so only a
+ * known-good YouTube address can ever reach the player's iframe.
+ * `rel=0` keeps YouTube's end-screen suggestions to the same channel, so a
+ * student is not offered someone else's lecture the moment ours finishes.
+ */
+export function embedUrlFor(videoId: string): string {
+  return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`;
+}
+
 function toSummary(row: VideoRow): VideoSummary {
   return {
     id: row.id,
@@ -68,7 +104,18 @@ function toSummary(row: VideoRow): VideoSummary {
     chapter: row.chapter,
     thumbnailUrl: row.thumbnail_url,
     durationSeconds: row.duration_seconds,
-    sourceKind: row.external_url ? 'link' : 'file',
+    // Same precedence watch() plays by: a permitted embed wins, then our copy.
+    sourceKind:
+      row.youtube_url && row.is_embeddable
+        ? 'youtube'
+        : row.file_path
+          ? 'file'
+          : row.external_url
+            ? 'link'
+            : 'file',
+    grade: row.grade,
+    educatorName: row.educator_name,
+    isFreeSample: row.is_free_sample,
   };
 }
 
@@ -91,14 +138,39 @@ export class VideoService {
 
   /**
    * The playback source for a premium user (the route enforces premium).
-   * External videos hand back their link; self-hosted ones a stream token the
-   * player appends as `?t=` on the stream endpoint.
+   * Self-hosted videos hand back a stream token the player appends as `?t=`
+   * on the stream endpoint; external ones their link or embed.
    */
   async watch(userId: string, videoId: string): Promise<WatchSource> {
     const video = await this.videoDao.findById(videoId);
     if (!video) throw new NotFoundError('This video does not exist.');
+    // Prefer the embed, but only where YouTube will actually play it. Roughly
+    // half these lectures are live streams whose owner disabled off-site
+    // playback, and an embed of one renders YouTube's "Video unavailable" card;
+    // the iframe is cross-origin, so we would never learn it had failed. Hence
+    // the stored flag, set by scripts/check-embeddable.js.
+    //
+    // Embedding first matters beyond correctness: YouTube serves the bytes and
+    // adapts quality to the connection, which our own mp4 cannot do.
+    const embedId = video.youtube_url && video.is_embeddable ? youtubeId(video.youtube_url) : null;
+    if (embedId) return { kind: 'youtube', videoId: embedId, embedUrl: embedUrlFor(embedId) };
+
+    // Otherwise our own copy. Statted rather than assumed so a row whose file
+    // has gone missing degrades to the next source instead of failing later,
+    // mid-stream, with nothing to show the student.
+    if (video.file_path && (await this.storage.stat(video.file_path))) {
+      return { kind: 'stream', token: createStreamToken(userId, videoId), expiresIn: STREAM_TOKEN_TTL_SECONDS };
+    }
+
+    // No stored copy and the embed is blocked: send the embed anyway. It shows
+    // YouTube's own card with a "Watch on YouTube" button, which is a worse
+    // experience but still a way through — better than an error page.
+    if (video.youtube_url) {
+      const id = youtubeId(video.youtube_url);
+      if (id) return { kind: 'youtube', videoId: id, embedUrl: embedUrlFor(id) };
+    }
     if (video.external_url) return { kind: 'link', url: video.external_url };
-    return { kind: 'stream', token: createStreamToken(userId, videoId), expiresIn: STREAM_TOKEN_TTL_SECONDS };
+    throw new NotFoundError('This video has no source to play from.');
   }
 
   /**

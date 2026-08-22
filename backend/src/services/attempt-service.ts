@@ -17,6 +17,10 @@ export interface AttemptQuestionView {
   options: { A: string; B: string; C: string; D: string };
   marks: number;
   negativeMarks: number;
+  /** Subject tab and Section A/B heading on the exam screen. Null when the
+      paper carries no such breakdown; the client then shows one flat list. */
+  subject: string | null;
+  section: 'A' | 'B' | null;
 }
 
 export interface SavedAnswerView {
@@ -107,6 +111,8 @@ function toQuestionView(question: QuestionRow): AttemptQuestionView {
     options: { A: question.option_a, B: question.option_b, C: question.option_c, D: question.option_d },
     marks: question.marks,
     negativeMarks: question.negative_marks,
+    subject: question.subject,
+    section: question.section,
   };
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { AnswerSheet } from './AnswerSheet';
+import { BrandMark } from './BrandMark';
 
 /**
  * The shell both signup and login sit in: form on a white card over warm
@@ -105,17 +106,9 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
 
         <Link
           to="/"
-          className="relative inline-flex w-fit items-center gap-3 rounded-lg text-ink transition-opacity hover:opacity-70"
+          className="relative inline-flex w-fit rounded-lg text-ink transition-opacity hover:opacity-70"
         >
-          {/* The mark is an OMR bubble mid-fill: ring, then answer. */}
-          <span className="grid h-11 w-11 place-items-center rounded-bubble bg-plum shadow-[0_6px_18px_rgba(76,42,94,0.4)]">
-            <span className="grid h-6 w-6 place-items-center rounded-bubble border-2 border-white/30">
-              <span className="h-3 w-3 rounded-bubble bg-marigold" />
-            </span>
-          </span>
-          <span className="font-display text-[1.55rem] font-extrabold tracking-tight">
-            infi<span className="text-marigold">-</span>Eureka
-          </span>
+          <BrandMark size="lg" />
         </Link>
 
         <div className="relative mx-auto flex w-full max-w-[27rem] flex-1 flex-col justify-center py-10">
