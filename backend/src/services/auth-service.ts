@@ -1,0 +1,206 @@
+import { randomInt } from 'node:crypto';
+import bcrypt from 'bcryptjs';
+import { isProduction } from '../config/env.js';
+import type { IOtpDao } from '../dao/interfaces/otp-dao.interface.js';
+import type { IUserDao } from '../dao/interfaces/user-dao.interface.js';
+import type { UserRow } from '../models/user.js';
+import type {
+  OtpRequestResult,
+  OtpVerifyResult,
+  PublicUser,
+  RegisterResult,
+} from '../types/auth-types.js';
+import {
+  InvalidCredentialsError,
+  NotFoundError,
+  UnauthenticatedError,
+  ValidationError,
+} from '../exceptions/app-error.js';
+import { AppError } from '../exceptions/app-error.js';
+import {
+  createRegistrationToken,
+  createSessionToken,
+  readRegistrationToken,
+} from '../utils/token.js';
+
+const OTP_TTL_SECONDS = 5 * 60;
+const MAX_OTP_ATTEMPTS = 5;
+
+/**
+ * A fixed account for manual testing, active only outside production:
+ * phone 9999999999 always accepts code 1234, no SMS, no random code.
+ * The account is created on first login, so it survives a database reset.
+ * The `isProduction` guard means none of this exists on a real deployment.
+ */
+const TEST_PHONE = '9999999999';
+const TEST_OTP = '1234';
+const TEST_CHALLENGE = 'test-account-challenge';
+
+/** Signing up with a phone that already has an account. */
+export class AlreadyRegisteredError extends AppError {
+  constructor() {
+    super('An account with this number already exists. Just log in.', 409, 'ALREADY_REGISTERED');
+  }
+}
+
+export interface RegisterInput {
+  phone: string;
+  /** dd-mm-yyyy, as the API contract specifies. */
+  dateOfBirth: string;
+  accessToken: string;
+  username?: string | undefined;
+  class?: string | undefined;
+  subjects?: string[] | undefined;
+  goals?: string[] | undefined;
+  learningPreference?: string[] | undefined;
+}
+
+function toPublicUser(user: UserRow): PublicUser {
+  return {
+    id: user.id,
+    name: user.name ?? 'Student',
+    phone: user.phone ?? '',
+    email: user.email ?? '',
+    isPremium: user.is_premium,
+    createdAt: user.created_at,
+  };
+}
+
+/** dd-mm-yyyy → yyyy-mm-dd, rejecting impossible dates like 31-02-2008. */
+function toIsoDate(ddmmyyyy: string): string {
+  const [day, month, year] = ddmmyyyy.split('-').map(Number);
+  const date = new Date(Date.UTC(year!, month! - 1, day!));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month! - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new ValidationError('That date of birth does not exist. Use dd-mm-yyyy.');
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The phone + OTP flow: request a code, verify it, register if new.
+ *
+ * There is no SMS provider yet, so outside production the code is returned in
+ * the response (`devOtp`) and printed to the server log. The SMS integration
+ * will slot into `requestOtp` without changing any interface.
+ */
+export class AuthService {
+  constructor(
+    private readonly userDao: IUserDao,
+    private readonly otpDao: IOtpDao,
+  ) {}
+
+  async requestOtp(phone: string): Promise<OtpRequestResult> {
+    if (!isProduction && phone === TEST_PHONE) {
+      return {
+        message: 'Test account — use code 1234.',
+        challengeToken: TEST_CHALLENGE,
+        expiresIn: OTP_TTL_SECONDS,
+        devOtp: TEST_OTP,
+      };
+    }
+
+    const otp = String(randomInt(1000, 10000));
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
+
+    const challengeToken = await this.otpDao.createChallenge(phone, otpHash, expiresAt);
+
+    if (!isProduction) {
+      // Stands in for the SMS during development.
+      console.error(`[dev] OTP for ${phone}: ${otp}`);
+    }
+
+    return {
+      message: 'We sent a 4-digit code by SMS.',
+      challengeToken,
+      expiresIn: OTP_TTL_SECONDS,
+      ...(isProduction ? {} : { devOtp: otp }),
+    };
+  }
+
+  async verifyOtp(phone: string, otp: string, challengeToken: string): Promise<OtpVerifyResult> {
+    if (!isProduction && phone === TEST_PHONE) {
+      if (otp !== TEST_OTP) {
+        throw new InvalidCredentialsError('The test account code is 1234.');
+      }
+      // Self-healing: recreate the account if the database was reset.
+      const testUser =
+        (await this.userDao.findByPhone(TEST_PHONE)) ??
+        (await this.userDao.create({
+          phone: TEST_PHONE,
+          dateOfBirth: '2008-01-01',
+          username: 'Test Student',
+          studentClass: '12',
+          subjects: ['biology', 'physics', 'chemistry'],
+        }));
+      return { isNewUser: false, accessToken: createSessionToken(testUser.id) };
+    }
+
+    const challenge = await this.otpDao.findChallenge(challengeToken, phone);
+    if (!challenge) {
+      throw new UnauthenticatedError('This code has expired. Request a new one.');
+    }
+
+    if (new Date(challenge.expires_at).getTime() < Date.now()) {
+      await this.otpDao.deleteChallenge(challenge.id);
+      throw new UnauthenticatedError('This code has expired. Request a new one.');
+    }
+
+    if (challenge.attempts >= MAX_OTP_ATTEMPTS) {
+      await this.otpDao.deleteChallenge(challenge.id);
+      throw new UnauthenticatedError('Too many wrong guesses. Request a new code.');
+    }
+
+    const matches = await bcrypt.compare(otp, challenge.otp_hash);
+    if (!matches) {
+      const attempts = await this.otpDao.recordFailedAttempt(challenge.id);
+      if (attempts >= MAX_OTP_ATTEMPTS) {
+        await this.otpDao.deleteChallenge(challenge.id);
+        throw new UnauthenticatedError('Too many wrong guesses. Request a new code.');
+      }
+      throw new InvalidCredentialsError('That code is not right. Check the SMS and try again.');
+    }
+
+    // A code is single-use whether or not an account exists.
+    await this.otpDao.deleteChallenge(challenge.id);
+
+    const user = await this.userDao.findByPhone(phone);
+    if (user) {
+      return { isNewUser: false, accessToken: createSessionToken(user.id) };
+    }
+    return { isNewUser: true, accessToken: createRegistrationToken(phone) };
+  }
+
+  async register(input: RegisterInput): Promise<RegisterResult> {
+    const verifiedPhone = readRegistrationToken(input.accessToken);
+    if (!verifiedPhone || verifiedPhone !== input.phone) {
+      throw new UnauthenticatedError('Your verification has expired. Start again from your phone number.');
+    }
+
+    if (await this.userDao.findByPhone(input.phone)) {
+      throw new AlreadyRegisteredError();
+    }
+
+    const user = await this.userDao.create({
+      phone: input.phone,
+      dateOfBirth: toIsoDate(input.dateOfBirth),
+      username: input.username,
+      studentClass: input.class,
+      subjects: input.subjects,
+      goals: input.goals,
+      learningPreference: input.learningPreference,
+    });
+
+    return { accessToken: createSessionToken(user.id), user: toPublicUser(user) };
+  }
+
+  async me(userId: string): Promise<PublicUser> {
+    const user = await this.userDao.findById(userId);
+    if (!user) throw new NotFoundError('This account no longer exists.');
+    return toPublicUser(user);
+  }
+}

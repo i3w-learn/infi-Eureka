@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/**
+ * Design tokens.
+ *
+ * Palette: deep plum and marigold on warm paper. Marigold is the accent and it
+ * is rationed — it marks the one thing on a screen that should be acted on.
+ *
+ * The recurring shape across this product is the OMR answer bubble: the filled
+ * circle from an exam answer sheet. It is the form controls, the list markers,
+ * and the brand panel. Nothing else needs to be decorative.
+ */
+@theme {
+  --color-ink: #241033;
+  --color-ink-soft: #5b4a68;
+  --color-ink-faint: #8d7f97;
+
+  --color-plum: #4c2a5e;
+  --color-plum-deep: #2c1540;
+  --color-plum-light: #6d4585;
+
+  --color-marigold: #ef7126;
+  --color-marigold-soft: #ffb672;
+  --color-marigold-wash: #fdefe2;
+
+  --color-paper: #fbf5e9;
+  --color-paper-warm: #f4e9d5;
+  --color-paper-edge: #e4d6bd;
+
+  --color-danger: #b3261e;
+  --color-success: #1e7a4d;
+
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-bubble: 9999px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    margin: 0;
+  }
+
+  /* One focus treatment everywhere: a marigold ring, always visible on
+     keyboard navigation. Never removed without a replacement. */
+  :focus-visible {
+    outline: 2px solid var(--color-marigold);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* Styles for the placeholder pages that have not been designed yet
+   (dashboard, videos, notes, tests). Each disappears as its page gets its
+   real Tailwind design; delete the block when the last user is gone. */
+@layer components {
+  .page {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 3rem 1.25rem;
+  }
+
+  .page h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .page-status {
+    padding: 3rem 1.25rem;
+    text-align: center;
+    color: var(--color-ink-faint);
+  }
+
+  .muted {
+    color: var(--color-ink-soft);
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+
+  .card {
+    border: 1px solid var(--color-paper-edge);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    background: white;
+  }
+
+  .card h2 {
+    font-size: 1.05rem;
+    margin: 0 0 0.35rem;
+  }
+
+  .card p {
+    margin: 0;
+  }
+}
+
+/* Soft colour washes that drift slowly behind the auth card. */
+.auth-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+.auth-blob-marigold {
+  width: 26rem;
+  height: 26rem;
+  top: -8rem;
+  right: -6rem;
+  background: rgba(239, 113, 38, 0.14);
+}
+
+.auth-blob-plum {
+  width: 30rem;
+  height: 30rem;
+  bottom: -12rem;
+  left: -10rem;
+  background: rgba(76, 42, 94, 0.12);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-blob-marigold {
+    animation: blob-drift 18s ease-in-out infinite alternate;
+  }
+
+  .auth-blob-plum {
+    animation: blob-drift 22s ease-in-out infinite alternate-reverse;
+  }
+
+  @keyframes blob-drift {
+    from {
+      transform: translate(0, 0) scale(1);
+    }
+    to {
+      transform: translate(-3rem, 2.5rem) scale(1.12);
+    }
+  }
+}
+
+/* The "it's locked" jiggle: a quick refusal shake, once per hover. */
+@keyframes lock-shake {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-10deg); }
+  40% { transform: rotate(9deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(4deg); }
+}
+
+/* A slow breathing glow so locked covers read as sleeping, not broken. */
+@keyframes lock-breathe {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lock-mark {
+    animation: lock-breathe 3.2s ease-in-out infinite;
+  }
+
+  .group:hover .lock-mark {
+    animation: lock-shake 0.5s ease-in-out;
+  }
+}
+
+/* A light sweep across the unlock banner every few seconds — alive, not loud. */
+@keyframes banner-sheen {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  18% { transform: translateX(240%) skewX(-18deg); }
+  100% { transform: translateX(240%) skewX(-18deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .banner-sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 30%;
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+    animation: banner-sheen 6s ease-in-out infinite;
+  }
+}
