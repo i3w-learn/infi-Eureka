@@ -1,0 +1,32 @@
+# Everything here is excluded from the build context that gets uploaded to
+# Cloud Build. Keeping it small makes deploys faster and — for the .env rules —
+# keeps real secrets out of the image.
+
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+
+# Downloaded lecture mp4s. Cloud Run's disk is wiped on every restart, so a
+# stored copy could never survive there anyway; videos play from YouTube.
+backend/storage
+
+# Question banks and seed source data — used by scripts/seed.js against the
+# database, never read by the running server.
+backend/data
+
+# Not part of the running app.
+.git
+.github
+docs
+backend/tests
+backend/migrations
+backend/seeds
+backend/scripts
+**/*.md
+*.png
+justfile
+
+# Cloud Run env vars — real secrets, never in the image or in git.
+env.yaml

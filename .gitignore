@@ -47,3 +47,6 @@ docs/*.pdf
 
 # Internal working spec — not for the repo.
 ncert-content-model-spec.md
+
+# Cloud Run env vars — real secrets.
+env.yaml

@@ -1,13 +1,26 @@
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
 import { env, isProduction, isTest } from './config/env.js';
 import { container } from './container.js';
 import authGuards from './middleware/auth.js';
 import { registerErrorHandler } from './middleware/error-handler.js';
 import { registerRoutes, API_PREFIX } from './api/routes/index.js';
+
+/**
+ * Where the Docker image puts the built React app, next to the compiled server.
+ * Absent in development and in tests — there the frontend is served by Vite on
+ * :5173 and reaches the API through its proxy — so its presence is what decides
+ * whether this process serves the app as well as the API.
+ */
+const FRONTEND_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 /**
  * Builds the server without starting it, so tests can create an instance,
@@ -74,7 +87,20 @@ export async function buildApp(): Promise<FastifyInstance> {
     videoDao: container.videoDao,
   });
 
-  registerErrorHandler(app);
+  // In the deployed image the API and the React app share one origin, so the
+  // built assets are served from here too. `wildcard: false` registers a route
+  // only for files that exist on disk; anything else falls through to the
+  // not-found handler below, which is what makes client-side routing work.
+  const servesFrontend = existsSync(FRONTEND_DIR);
+  let spaIndexHtml: string | undefined;
+  if (servesFrontend) {
+    await app.register(fastifyStatic, { root: FRONTEND_DIR, wildcard: false });
+    // Read once at boot rather than per request: it is an immutable build
+    // artifact, and every deep link into the app sends it.
+    spaIndexHtml = await readFile(join(FRONTEND_DIR, 'index.html'), 'utf8');
+  }
+
+  registerErrorHandler(app, { apiPrefix: API_PREFIX, spaIndexHtml });
   await registerRoutes(app);
 
   return app;
