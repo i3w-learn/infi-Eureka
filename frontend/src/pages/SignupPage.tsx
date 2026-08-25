@@ -94,7 +94,7 @@ const COPY: Record<Step, { title: string; subtitle: string }> = {
   },
   otp: {
     title: 'Check your phone',
-    subtitle: 'We sent a 4-digit code by SMS. Enter it here.',
+    subtitle: 'We sent a 4-digit code on WhatsApp. Enter it here.',
   },
   details: {
     title: 'About you',
@@ -118,7 +118,7 @@ export function SignupPage() {
   // Step 2 → 3 carry-over
   const [otp, setOtp] = useState('');
   const [otpError, setOtpError] = useState<string>();
-  /** In development the backend returns the code, standing in for the SMS. */
+  /** In development the backend returns the code, standing in for the WhatsApp message. */
   const [devOtp, setDevOtp] = useState<string>();
   const [accessToken, setAccessToken] = useState('');
 
@@ -256,7 +256,7 @@ export function SignupPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               error={phoneError}
-              hint="We'll text a code to this number"
+              hint="We'll send a code to this number on WhatsApp"
             />
             <Button type="submit" loading={submitting} loadingLabel="Sending code">
               Send code

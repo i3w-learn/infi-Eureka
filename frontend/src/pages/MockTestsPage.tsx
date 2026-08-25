@@ -16,7 +16,7 @@ export function MockTestsPage() {
         error ??
         'The real exam interface: timed by the server, question palette, mark for review.'
       }
-      items={error ? [] : (items ?? [])}
+      items={error ? [] : items}
       kind="test"
       detailBase="/mock-tests"
       detailSuffix="/attempt"

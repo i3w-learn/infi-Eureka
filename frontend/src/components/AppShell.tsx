@@ -20,7 +20,7 @@ import { SideNav } from './SideNav';
  * The exam screen deliberately does not use this shell. Mid-test, a rail of
  * links away from the paper is a way to lose an attempt by accident.
  */
-const RAIL_EXPANDED = '18.5rem';
+const RAIL_EXPANDED = '15rem';
 const RAIL_COLLAPSED = '6rem';
 const COLLAPSE_KEY = 'infi-eureka:rail-collapsed';
 

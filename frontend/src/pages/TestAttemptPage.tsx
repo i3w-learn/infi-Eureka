@@ -97,6 +97,7 @@ export function TestAttemptPage() {
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [confirming, setConfirming] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveWarning, setSaveWarning] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -289,6 +290,18 @@ export function TestAttemptPage() {
       <header className="cbt-header z-30 shrink-0">
         <div className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 sm:px-6 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <div className="flex min-w-0 items-center gap-2.5">
+            {/* The way out. It asks first, because the clock does not stop for
+                it — see the dialog. Everything else in this header keeps the
+                student in the paper, so this is the only link that leaves. */}
+            <button
+              type="button"
+              data-testid="leave-test"
+              onClick={() => setLeaving(true)}
+              className="cbt-btn shrink-0 px-3"
+              aria-label="Leave the test"
+            >
+              <span aria-hidden="true">←</span>
+            </button>
             <img
               src="/i3w-mark.png"
               alt=""
@@ -546,6 +559,60 @@ export function TestAttemptPage() {
           </div>
         </aside>
       </div>
+
+      {/* ---- Leaving mid-paper ---- */}
+      <AnimatePresence>
+        {leaving ? (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Stay in the test"
+              className="fixed inset-0 z-40 bg-plum-deep/50 backdrop-blur-[2px]"
+              onClick={() => setLeaving(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Leave the test"
+              className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-[#1d2433] bg-[#fffdf8] p-7 shadow-[6px_6px_0_#1d2433]"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <h2 className="font-display text-[1.3rem] font-bold">Leave the test?</h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                Your answers are saved and the paper picks up where you left it. The clock does not
+                stop, though — it runs on the server, so the time keeps going while you are away.
+              </p>
+
+              <div className="mt-5 rounded-2xl border border-[#1d2433] bg-white p-3">
+                <p className="text-xs text-ink-faint">Time left</p>
+                <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--cbt-ink)' }}>
+                  {formatClock(secondsLeft)}
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={() => setLeaving(false)} className="cbt-btn flex-1">
+                  Keep going
+                </button>
+                <button
+                  type="button"
+                  data-testid="confirm-leave"
+                  onClick={() => navigate('/mock-tests')}
+                  className="cbt-btn flex-1"
+                >
+                  Leave test
+                </button>
+              </div>
+            </motion.div>
+          </>
+        ) : null}
+      </AnimatePresence>
 
       {/* ---- Submit confirmation ---- */}
       <AnimatePresence>

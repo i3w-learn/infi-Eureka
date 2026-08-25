@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { testsApi } from '../api/tests.api';
 import { ApiError } from '../api/client';
+import { MOCK_TEST_BANNER } from '../lib/media';
 import type { ContentItem, Subject } from '../lib/sample-content';
 
 const KNOWN_SUBJECTS: Subject[] = ['biology', 'physics', 'chemistry'];
@@ -31,10 +32,10 @@ export function useMockTests(): {
           tests.map((test) => ({
             id: test.id,
             title: test.title,
-            subject: KNOWN_SUBJECTS.includes(test.subject as Subject)
-              ? (test.subject as Subject)
-              : 'mixed',
+            subject: KNOWN_SUBJECTS.includes(test.subject as Subject) ? (test.subject as Subject) : 'mixed',
             classLabel: 'NEET pattern',
+            grade: null,
+            thumbnailUrl: MOCK_TEST_BANNER,
             meta: `${test.questionCount} Q · ${test.durationMinutes} min · ${test.totalMarks} marks`,
             free: test.isFreeSample,
           })),

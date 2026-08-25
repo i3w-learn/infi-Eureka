@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import katex from 'katex';
 
 /**
@@ -97,12 +97,43 @@ export function RichText({ children, className }: RichTextProps) {
 }
 
 /**
- * The figure files are not in the app yet, so this names the missing diagram
- * rather than showing a broken image. It becomes an <img> the moment the
- * figures folder is in place.
+ * Figures live in a public GCS bucket, one folder per paper. The bank only
+ * stores the flat path (`figures/MT-01_QP_q016_fig00.png`), so the paper
+ * folder is recovered from the filename, which always starts with it.
+ */
+const FIGURE_BASE = import.meta.env['VITE_FIGURE_BASE_URL'] as string | undefined;
+const PAPER_FOLDER = /_q\d+_fig\d+\.[a-z]+$/i;
+
+function figureUrl(src: string): string | null {
+  if (!FIGURE_BASE) return null;
+  const file = src.split('/').pop();
+  if (!file) return null;
+  const paper = file.replace(PAPER_FOLDER, '');
+  if (paper === file) return null;
+  return `${FIGURE_BASE}/figures/${paper}/${file}`;
+}
+
+/**
+ * Falls back to naming the diagram rather than showing a broken image, which
+ * covers both an unconfigured bucket and a figure that was never uploaded.
  */
 function Figure({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  const url = figureUrl(src);
   const name = src.split('/').pop() ?? src;
+
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt={`Diagram for this question (${name})`}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="my-2 block max-h-64 w-auto max-w-full rounded-xl border border-paper-edge bg-white"
+      />
+    );
+  }
+
   return (
     <span className="my-2 flex items-center gap-2 rounded-xl border border-dashed border-paper-edge bg-paper-warm px-3 py-2 text-ink-faint">
       <span aria-hidden="true">🖼</span>

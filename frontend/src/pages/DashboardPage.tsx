@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { BookRow } from '../components/BookRow';
 import { ContentRow } from '../components/ContentRow';
+import { groupIntoBooks } from '../lib/libraryBooks';
 import { useAuth } from '../hooks/useAuth';
 import { useMockTests } from '../hooks/useMockTests';
 import { useLibrary } from '../hooks/useLibrary';
@@ -30,6 +33,17 @@ export function DashboardPage() {
   const { items: formulaSheets } = useLibrary('formula_sheet');
   const { items: ncertHighlights } = useLibrary('ncert_highlight');
   const firstName = (user?.name ?? 'Student').split(' ')[0];
+
+  // The library shelves show books, matching their catalogues — a student
+  // picks up "Class 12 Biology", not chapter 7 of it.
+  const formulaBooks = useMemo(
+    () => groupIntoBooks(formulaSheets ?? [], 'formula_sheet'),
+    [formulaSheets],
+  );
+  const ncertBooks = useMemo(
+    () => groupIntoBooks(ncertHighlights ?? [], 'ncert_highlight'),
+    [ncertHighlights],
+  );
 
   return (
     <div className="w-full">
@@ -102,24 +116,20 @@ export function DashboardPage() {
         </motion.div>
 
         <motion.div variants={rise}>
-          <ContentRow
+          <BookRow
             title="Formula sheets"
             viewAllTo="/formula-sheets"
-            items={(formulaSheets ?? []).slice(0, SHELF_LIMIT)}
-            kind="note"
+            books={formulaBooks.slice(0, SHELF_LIMIT)}
             isPremium={isPremium}
-            itemTo={(item) => `/formula-sheets/${item.id}`}
           />
         </motion.div>
 
         <motion.div variants={rise}>
-          <ContentRow
+          <BookRow
             title="NCERT highlights"
             viewAllTo="/ncert-highlights"
-            items={(ncertHighlights ?? []).slice(0, SHELF_LIMIT)}
-            kind="note"
+            books={ncertBooks.slice(0, SHELF_LIMIT)}
             isPremium={isPremium}
-            itemTo={(item) => `/ncert-highlights/${item.id}`}
           />
         </motion.div>
 

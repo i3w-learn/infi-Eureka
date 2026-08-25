@@ -2,13 +2,12 @@ import { Link } from 'react-router-dom';
 import { BrandMark } from '../components/BrandMark';
 import { motion } from 'motion/react';
 import { AnswerSheet } from '../components/AnswerSheet';
-import { FeatureMenu } from '../components/FeatureMenu';
 
 /**
  * The public home page. Everything a visitor sees before signing up.
  *
- * Same design language as auth: warm paper, plum panels, marigold rationed to
- * the actions and the OMR bubbles. Sections reveal as they scroll into view,
+ * Same sticker language as auth and the app shell: keyline, hard shadow, warm
+ * paper, plum panels, marigold rationed to the actions and the OMR bubbles. Sections reveal as they scroll into view,
  * once, and stay put.
  */
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -45,10 +44,24 @@ const PAPER = [
   { subject: 'Biology', marks: 360 },
 ];
 
-function Logo() {
+/**
+ * `compact` is for the header, which has to fit two actions beside it: on a
+ * phone the wordmark drops and the mark stands alone rather than truncating.
+ * The footer wraps, so it always shows the full lockup.
+ */
+function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="inline-flex min-w-0 rounded-lg text-ink transition-opacity hover:opacity-70">
-      <BrandMark />
+      {compact ? (
+        <>
+          <img src="/i3w-mark.png" alt="infi-Eureka" className="h-9 w-auto sm:hidden" />
+          <span className="hidden sm:inline-flex">
+            <BrandMark />
+          </span>
+        </>
+      ) : (
+        <BrandMark />
+      )}
     </Link>
   );
 }
@@ -57,22 +70,21 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-paper text-ink">
       {/* ---- Nav ---- */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
-        <Logo />
-        <nav className="flex items-center gap-3">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 sm:px-10">
+        <Logo compact />
+        {/* Two links, no drawer. The feature routes behind the old menu were
+            login-gated anyway, so a visitor's only real choices here are to
+            sign in or sign up — and both fit on a phone without a menu. */}
+        <nav className="flex items-center gap-2 sm:gap-3">
           <Link
             to="/login"
-            className="hidden rounded-xl px-4 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink sm:block"
+            className="px-3 py-2.5 text-sm font-semibold whitespace-nowrap text-ink-soft transition-colors hover:text-ink sm:px-4"
           >
             Log in
           </Link>
-          <Link
-            to="/signup"
-            className="hidden rounded-xl bg-plum px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(76,42,94,0.6)] transition-transform hover:-translate-y-0.5 sm:block"
-          >
+          <Link to="/signup" className="sticker-btn" data-variant="plum" data-size="sm">
             Get started
           </Link>
-          <FeatureMenu />
         </nav>
       </header>
 
@@ -80,7 +92,7 @@ export function LandingPage() {
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-10 pb-20 sm:px-10 lg:grid-cols-[1.1fr_1fr] lg:pt-16 lg:pb-28">
         <div>
           <motion.p
-            className="inline-flex items-center gap-2 rounded-bubble border border-paper-edge bg-white px-3.5 py-1.5 text-[0.8rem] font-medium text-ink-soft"
+            className="sticker-pill text-[0.8rem] font-semibold"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: EASE }}
@@ -104,7 +116,7 @@ export function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.16, duration: 0.55, ease: EASE }}
           >
-            One-shot videos, notes with your own highlights, and mock tests on the real exam
+            One-shot videos, notes and highlights, and mock tests on the real exam
             interface. One payment unlocks everything — no subscription.
           </motion.p>
 
@@ -116,7 +128,7 @@ export function LandingPage() {
           >
             <Link
               to="/signup"
-              className="group flex items-center gap-2.5 rounded-xl bg-gradient-to-b from-[#f8823c] to-marigold px-6 py-3.5 font-semibold text-white shadow-[0_10px_24px_-10px_rgba(239,113,38,0.65)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(239,113,38,0.8)]"
+              className="sticker-btn group"
             >
               Start preparing
               <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
@@ -136,9 +148,9 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0, rotate: 0 }}
           transition={{ delay: 0.2, duration: 0.7, ease: EASE }}
         >
-          <div className="relative rounded-3xl bg-plum p-8 shadow-[0_32px_70px_-28px_rgba(44,21,64,0.55)]">
+          <div className="sticker-card relative p-8" data-tone="plum">
             <div
-              className="absolute inset-0 rounded-3xl opacity-90"
+              className="absolute inset-0 rounded-[23px] opacity-90"
               style={{
                 background: 'radial-gradient(120% 100% at 80% -10%, #74498d 0%, #4c2a5e 45%, #2a1340 100%)',
               }}
@@ -157,7 +169,7 @@ export function LandingPage() {
       </section>
 
       {/* ---- Features ---- */}
-      <section className="bg-white/60 py-20">
+      <section className="border-y-[3px] border-[var(--brut-line)] bg-paper-warm py-20">
         <div className="mx-auto max-w-6xl px-6 sm:px-10">
           <motion.h2
             className="font-display text-[1.9rem] font-bold tracking-tight sm:text-[2.3rem]"
@@ -170,13 +182,14 @@ export function LandingPage() {
             {FEATURES.map((feature, index) => (
               <motion.article
                 key={feature.option}
-                className="group rounded-3xl border border-paper-edge bg-white p-7 shadow-[0_10px_30px_-18px_rgba(44,21,64,0.18)] transition-all hover:-translate-y-1.5 hover:shadow-[0_22px_44px_-20px_rgba(44,21,64,0.3)]"
+                className="sticker-card group p-7"
+                data-pressable="true"
                 initial={{ opacity: 0, y: 28 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ delay: index * 0.1, duration: 0.55, ease: EASE }}
               >
-                <span className="grid h-11 w-11 place-items-center rounded-bubble border-2 border-plum/20 font-display text-lg font-bold text-plum transition-colors group-hover:border-marigold group-hover:bg-marigold group-hover:text-white">
+                <span className="sticker-option">
                   {feature.option}
                 </span>
                 <h3 className="mt-5 font-display text-[1.2rem] font-bold">{feature.title}</h3>
@@ -189,7 +202,7 @@ export function LandingPage() {
 
       {/* ---- The paper ---- */}
       <section className="mx-auto max-w-6xl px-6 py-20 sm:px-10">
-        <div className="grid items-center gap-10 rounded-3xl bg-plum p-8 sm:p-12 lg:grid-cols-2">
+        <div className="sticker-card grid items-center gap-10 p-8 sm:p-12 lg:grid-cols-2" data-tone="plum">
           <div>
             <motion.h2
               className="font-display text-[1.7rem] leading-snug font-bold tracking-tight text-white sm:text-[2rem]"
@@ -228,7 +241,7 @@ export function LandingPage() {
       {/* ---- Pricing ---- */}
       <section className="mx-auto max-w-6xl px-6 pb-24 sm:px-10">
         <motion.div
-          className="mx-auto max-w-2xl rounded-3xl border border-paper-edge bg-white p-9 text-center shadow-[0_24px_60px_-24px_rgba(44,21,64,0.25)] sm:p-12"
+          className="sticker-card mx-auto max-w-2xl p-9 text-center sm:p-12"
           {...reveal}
         >
           <p className="text-[0.8rem] font-medium tracking-[0.18em] text-ink-faint uppercase">
@@ -246,7 +259,7 @@ export function LandingPage() {
           </p>
           <Link
             to="/signup"
-            className="group mt-8 inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-b from-[#f8823c] to-marigold px-8 py-3.5 font-semibold text-white shadow-[0_10px_24px_-10px_rgba(239,113,38,0.65)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(239,113,38,0.8)]"
+            className="sticker-btn group mt-8 px-8"
           >
             Unlock everything
             <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
@@ -257,7 +270,7 @@ export function LandingPage() {
       </section>
 
       {/* ---- Footer ---- */}
-      <footer className="border-t border-paper-edge">
+      <footer className="border-t-[3px] border-[var(--brut-line)]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 sm:px-10">
           <Logo />
           <nav className="flex items-center gap-6 text-sm text-ink-soft">

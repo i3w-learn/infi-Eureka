@@ -12,8 +12,9 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'className' | 'chi
 
 /**
  * The one marigold element on the page. Everything else stays quiet so this
- * reads as the single thing to act on. The arrow nudges forward on hover —
- * the button answers "what happens next" before it is pressed.
+ * reads as the single thing to act on. It is the same pressable sticker as
+ * the nav items — it drops into its own shadow when pressed — and the arrow
+ * nudges forward on hover, answering "what happens next" before the press.
  */
 export function Button({ children, loading, loadingLabel, disabled, ...props }: ButtonProps) {
   const isBusy = Boolean(loading);
@@ -23,14 +24,11 @@ export function Button({ children, loading, loadingLabel, disabled, ...props }: 
       {...props}
       disabled={disabled || isBusy}
       aria-busy={isBusy || undefined}
-      whileHover={disabled || isBusy ? undefined : { y: -2 }}
-      whileTap={disabled || isBusy ? undefined : { scale: 0.98 }}
-      transition={{ duration: 0.15 }}
-      className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-b from-[#f8823c] to-marigold px-5 py-3.5 font-sans text-[0.95rem] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(239,113,38,0.65)] transition-shadow hover:shadow-[0_14px_30px_-10px_rgba(239,113,38,0.8)] disabled:cursor-not-allowed disabled:from-marigold-soft disabled:to-marigold-soft disabled:shadow-none"
+      className="sticker-btn group flex w-full font-sans text-[0.95rem]"
     >
       {isBusy ? (
         <>
-          <span className="h-3.5 w-3.5 animate-spin rounded-bubble border-2 border-white/40 border-t-white" />
+          <span className="h-3.5 w-3.5 animate-spin rounded-bubble border-2 border-[var(--brut-line)]/30 border-t-[var(--brut-line)]" />
           {loadingLabel ?? children}
         </>
       ) : (

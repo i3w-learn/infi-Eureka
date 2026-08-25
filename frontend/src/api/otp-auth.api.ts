@@ -3,7 +3,7 @@ import { apiRequest } from './client';
 /**
  * The real auth flow, mirroring the backend's auth.schema.ts:
  *
- *   1. requestOtp(phone)            → challengeToken (OTP sent by SMS)
+ *   1. requestOtp(phone)            → challengeToken (OTP sent on WhatsApp)
  *   2. verifyOtp(phone, otp, token) → isNewUser + accessToken
  *   3. register(...)                → account created (new users only)
  *
@@ -15,7 +15,7 @@ export interface OtpRequestResponse {
   message: string;
   challengeToken: string;
   expiresIn: number;
-  /** Present only in development — stands in for the SMS. */
+  /** Present only in development — stands in for the WhatsApp message. */
   devOtp?: string;
 }
 

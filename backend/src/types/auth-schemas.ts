@@ -33,7 +33,7 @@ export const requestOtpSchema = {
         message: { type: 'string' },
         challengeToken: { type: 'string' },
         expiresIn: { type: 'integer' },
-        // Stands in for the SMS during development; never present in production.
+        // Stands in for the WhatsApp message during development; never present in production.
         devOtp: { type: 'string' },
       },
     },

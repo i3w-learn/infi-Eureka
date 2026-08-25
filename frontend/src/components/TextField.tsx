@@ -20,7 +20,7 @@ export function TextField({ label, tag, error, hint, type = 'text', ...props }: 
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
+      <label htmlFor={id} className="block text-sm font-semibold text-ink">
         {label}
         {tag ? <span className="ml-2 text-[0.75rem] font-normal text-ink-faint">{tag}</span> : null}
       </label>
@@ -32,11 +32,7 @@ export function TextField({ label, tag, error, hint, type = 'text', ...props }: 
           type={inputType}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={`w-full rounded-xl border bg-white px-3.5 py-3 text-[0.95rem] text-ink transition-all duration-200 placeholder:text-ink-faint focus:outline-none ${
-            error
-              ? 'border-danger'
-              : 'border-paper-edge hover:border-ink-faint focus:border-marigold focus:shadow-[0_0_0_4px_rgba(239,113,38,0.12)]'
-          } ${isPassword ? 'pr-12' : ''}`}
+          className={`auth-input text-[0.95rem] placeholder:text-ink-faint ${isPassword ? 'pr-12' : ''}`}
         />
 
         {isPassword ? (
@@ -44,7 +40,7 @@ export function TextField({ label, tag, error, hint, type = 'text', ...props }: 
             type="button"
             onClick={() => setRevealed((r) => !r)}
             aria-pressed={revealed}
-            className="absolute top-1/2 right-2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-bubble border border-paper-edge transition-colors hover:border-marigold"
+            className="absolute top-1/2 right-2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-bubble border border-[var(--brut-line)] bg-white transition-colors hover:bg-[var(--brut-accent-soft)]"
           >
             {/* The answer bubble again: filled means the password is showing. */}
             <span

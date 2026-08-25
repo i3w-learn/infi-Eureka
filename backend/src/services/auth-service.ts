@@ -28,7 +28,7 @@ const MAX_OTP_ATTEMPTS = 5;
 
 /**
  * A fixed account for manual testing, active only outside production:
- * phone 9999999999 always accepts code 1234, no SMS, no random code. The
+ * phone 9999999999 always accepts code 1234, no WhatsApp message, no random code. The
  * account is created on first login and unlocked without payment, so testing
  * never stops at the paywall.
  *
@@ -87,8 +87,8 @@ function toIsoDate(ddmmyyyy: string): string {
 /**
  * The phone + OTP flow: request a code, verify it, register if new.
  *
- * There is no SMS provider yet, so outside production the code is returned in
- * the response (`devOtp`) and printed to the server log. The SMS integration
+ * There is no WhatsApp provider yet, so outside production the code is returned in
+ * the response (`devOtp`) and printed to the server log. The WhatsApp integration
  * will slot into `requestOtp` without changing any interface.
  */
 export class AuthService {
@@ -114,12 +114,12 @@ export class AuthService {
     const challengeToken = await this.otpDao.createChallenge(phone, otpHash, expiresAt);
 
     if (!isProduction) {
-      // Stands in for the SMS during development.
+      // Stands in for the WhatsApp message during development.
       console.error(`[dev] OTP for ${phone}: ${otp}`);
     }
 
     return {
-      message: 'We sent a 4-digit code by SMS.',
+      message: 'We sent a 4-digit code on WhatsApp.',
       challengeToken,
       expiresIn: OTP_TTL_SECONDS,
       ...(isProduction ? {} : { devOtp: otp }),
@@ -170,7 +170,7 @@ export class AuthService {
         await this.otpDao.deleteChallenge(challenge.id);
         throw new UnauthenticatedError('Too many wrong guesses. Request a new code.');
       }
-      throw new InvalidCredentialsError('That code is not right. Check the SMS and try again.');
+      throw new InvalidCredentialsError('That code is not right. Check WhatsApp and try again.');
     }
 
     // A code is single-use whether or not an account exists.

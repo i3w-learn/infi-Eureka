@@ -96,13 +96,32 @@ export function embedUrlFor(videoId: string): string {
   return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`;
 }
 
+/**
+ * The card image for a lecture.
+ *
+ * YouTube publishes a still for every video at a fixed address built from the
+ * id, so a YouTube-hosted lecture needs no uploaded artwork and never goes
+ * stale — swap the video and the picture follows. `hqdefault` is the largest
+ * size YouTube guarantees exists; `maxresdefault` 404s on plenty of videos,
+ * which would leave a broken card.
+ *
+ * A thumbnail we stored ourselves always wins, so a hand-picked cover is
+ * never overridden. Embeddability is irrelevant here: the still is public
+ * even when the video refuses to play inside an iframe.
+ */
+export function thumbnailFor(row: VideoRow): string | null {
+  if (row.thumbnail_url) return row.thumbnail_url;
+  const id = row.youtube_url ? youtubeId(row.youtube_url) : null;
+  return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
+}
+
 function toSummary(row: VideoRow): VideoSummary {
   return {
     id: row.id,
     title: row.title,
     subject: row.subject,
     chapter: row.chapter,
-    thumbnailUrl: row.thumbnail_url,
+    thumbnailUrl: thumbnailFor(row),
     durationSeconds: row.duration_seconds,
     // Same precedence watch() plays by: a permitted embed wins, then our copy.
     sourceKind:

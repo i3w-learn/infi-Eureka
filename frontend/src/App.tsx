@@ -17,6 +17,7 @@ import { NotesPage } from './pages/NotesPage';
 import { NoteReaderPage } from './pages/NoteReaderPage';
 import { FormulaSheetsPage } from './pages/FormulaSheetsPage';
 import { NcertHighlightsPage } from './pages/NcertHighlightsPage';
+import { LibraryBookPage } from './pages/LibraryBookPage';
 import { DocumentReaderPage } from './pages/DocumentReaderPage';
 import { MockTestsPage } from './pages/MockTestsPage';
 import { TestAttemptPage } from './pages/TestAttemptPage';
@@ -72,6 +73,29 @@ export function App() {
                 */}
                 <Route path="/formula-sheets/:documentId" element={<DocumentReaderPage />} />
                 <Route path="/ncert-highlights/:documentId" element={<DocumentReaderPage />} />
+
+                {/* One book's contents. Two segments, so it never collides with
+                    the one-segment reader route above. */}
+                <Route
+                  path="/formula-sheets/:subject/:grade"
+                  element={
+                    <LibraryBookPage
+                      kind="formula_sheet"
+                      detailBase="/formula-sheets"
+                      label="formula sheets"
+                    />
+                  }
+                />
+                <Route
+                  path="/ncert-highlights/:subject/:grade"
+                  element={
+                    <LibraryBookPage
+                      kind="ncert_highlight"
+                      detailBase="/ncert-highlights"
+                      label="NCERT highlights"
+                    />
+                  }
+                />
               </Route>
             </Route>
 

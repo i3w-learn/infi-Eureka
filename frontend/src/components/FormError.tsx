@@ -18,7 +18,7 @@ export function FormError({ message }: { message?: string | undefined }) {
           transition={{ duration: 0.2 }}
           className="overflow-hidden"
         >
-          <span className="mb-4 block rounded-xl border border-danger/25 bg-danger/5 px-3.5 py-3 text-[0.85rem] leading-relaxed text-danger">
+          <span className="auth-error mb-5 block px-3.5 py-3 text-[0.85rem] leading-relaxed font-medium text-danger">
             {message}
           </span>
         </motion.p>

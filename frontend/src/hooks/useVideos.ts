@@ -37,12 +37,12 @@ export function useVideos(): { items: ContentItem[] | null; error?: string } {
           videos.map((video) => ({
             id: video.id,
             title: video.title,
-            subject: KNOWN_SUBJECTS.includes(video.subject as Subject)
-              ? (video.subject as Subject)
-              : 'mixed',
+            subject: KNOWN_SUBJECTS.includes(video.subject as Subject) ? (video.subject as Subject) : 'mixed',
             // Grade is unknown for lectures that span both years; the educator
             // is the more useful label there, since students follow teachers.
             classLabel: video.grade ? `Class ${video.grade}` : (video.educatorName ?? 'One shot'),
+            grade: video.grade,
+            thumbnailUrl: video.thumbnailUrl,
             meta: formatDuration(video.durationSeconds),
             free: video.isFreeSample,
           })),

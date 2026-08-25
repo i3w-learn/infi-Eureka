@@ -5,8 +5,10 @@ import { AnswerSheet } from './AnswerSheet';
 import { BrandMark } from './BrandMark';
 
 /**
- * The shell both signup and login sit in: form on a white card over warm
- * paper, brand panel in plum.
+ * The shell both signup and login sit in: form on a sticker card over warm
+ * paper, brand panel in plum. The card, field and button use the same
+ * keyline-and-hard-shadow language as the app shell, so logging in and
+ * landing on the dashboard look like the same product.
  *
  * The panel states what the paper actually is — 720 marks across three
  * subjects, Biology worth double the others. That is the fact a NEET student
@@ -113,7 +115,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
 
         <div className="relative mx-auto flex w-full max-w-[27rem] flex-1 flex-col justify-center py-10">
           <motion.div
-            className="rounded-3xl border border-paper-edge/70 bg-white/85 p-7 shadow-[0_24px_60px_-24px_rgba(44,21,64,0.25)] backdrop-blur-sm sm:p-9"
+            className="sticker-card p-7 sm:p-9"
             initial="hidden"
             animate="visible"
             variants={cardStagger}
@@ -149,7 +151,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
       </div>
 
       {/* Brand panel */}
-      <aside className="relative hidden overflow-hidden bg-plum lg:flex lg:flex-col lg:justify-between lg:px-14 lg:py-12">
+      <aside className="auth-panel relative hidden overflow-hidden bg-plum lg:flex lg:flex-col lg:justify-between lg:px-14 lg:py-12">
         <div
           className="absolute inset-0"
           style={{

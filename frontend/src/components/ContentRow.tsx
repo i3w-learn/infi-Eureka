@@ -36,7 +36,11 @@ export function ContentRow({ title, viewAllTo, items, kind, isPremium, itemTo }:
         </Link>
       </div>
 
-      <div className="-mx-1 mt-4 flex snap-x gap-4 overflow-x-auto px-1 pb-3">
+      {/* overflow-x on a scroll container also clips vertically — a browser
+          cannot scroll one axis and overflow the other — so the row carries
+          padding on every side to make room for the cards' hover lift and
+          their shadow. The margin is reduced to match, keeping the spacing. */}
+      <div className="-mx-1 mt-1 flex snap-x gap-4 overflow-x-auto px-1 py-3">
         {items.map((item, index) => {
           const locked = !isPremium && !item.free;
           return (

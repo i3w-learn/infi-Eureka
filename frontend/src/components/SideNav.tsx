@@ -147,7 +147,7 @@ export function SideNav({ onNavigate, collapsed = false }: SideNavProps) {
           {collapsed ? (
             <img src="/i3w-mark.png" alt="infi-Eureka" className="h-8 w-auto" />
           ) : (
-            <BrandMark />
+            <BrandMark size="sm" />
           )}
         </Link>
       </div>

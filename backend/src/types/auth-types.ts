@@ -28,7 +28,7 @@ export interface OtpRequestResult {
   message: string;
   challengeToken: string;
   expiresIn: number;
-  /** The code itself — present only outside production, standing in for SMS. */
+  /** The code itself — present only outside production, standing in for the WhatsApp message. */
   devOtp?: string;
 }
 

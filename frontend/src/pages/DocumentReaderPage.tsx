@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { libraryApi, type LibraryDocumentDetail } from '../api/library.api';
 import { ApiError } from '../api/client';
+import { BackButton } from '../components/BackButton';
 
 /**
  * Opens one library PDF — a formula sheet or an NCERT Highlights chapter.
@@ -52,6 +53,8 @@ export function DocumentReaderPage() {
   const current = opened?.id === documentId ? opened : null;
   const document = current?.document ?? null;
   const error = current?.error ?? null;
+  // /formula-sheets/:id goes back to /formula-sheets, /ncert-highlights/:id to its list.
+  const catalogue = '/' + (useLocation().pathname.split('/')[1] ?? '');
 
   return (
     <div className="flex min-h-full w-full flex-col">
@@ -73,7 +76,8 @@ export function DocumentReaderPage() {
           <p className="mt-20 text-center text-ink-faint">Opening…</p>
         ) : (
           <>
-            <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3">
+            <BackButton fallback={catalogue} />
+            <div className="mt-5 flex flex-wrap items-baseline justify-between gap-3">
               <div>
                 <h1 className="font-display text-[1.5rem] leading-tight font-extrabold tracking-tight sm:text-[1.9rem]">
                   {document.title}

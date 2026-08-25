@@ -49,6 +49,8 @@ export function useLibrary(kind: LibraryKind): {
               ? (document.subject as Subject)
               : 'mixed',
             classLabel: `Class ${document.grade}`,
+            grade: document.grade,
+            chapterNumber: document.chapterNumber,
             meta:
               document.chapterNumber === null
                 ? formatSize(document.sizeBytes)

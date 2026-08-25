@@ -12,7 +12,7 @@ export function VideosPage() {
     <CatalogPage
       title="One-shot videos"
       subtitle={error ?? 'Full chapters in single sittings — watch, pause, rewatch.'}
-      items={error ? [] : (items ?? [])}
+      items={error ? [] : items}
       kind="video"
       detailBase="/videos"
     />

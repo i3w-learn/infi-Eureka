@@ -26,7 +26,7 @@ const stepMotion = {
 
 const COPY: Record<Step, { title: string; subtitle: string }> = {
   phone: { title: 'Welcome back', subtitle: 'Log in with your mobile number — no password to remember.' },
-  otp: { title: 'Check your phone', subtitle: 'We sent a 4-digit code by SMS. Enter it here.' },
+  otp: { title: 'Check your phone', subtitle: 'We sent a 4-digit code on WhatsApp. Enter it here.' },
 };
 
 export function LoginPage() {
@@ -43,7 +43,7 @@ export function LoginPage() {
   const [challengeToken, setChallengeToken] = useState('');
   const [otp, setOtp] = useState('');
   const [otpError, setOtpError] = useState<string>();
-  /** In development the backend returns the code, standing in for the SMS. */
+  /** In development the backend returns the code, standing in for the WhatsApp message. */
   const [devOtp, setDevOtp] = useState<string>();
 
   const cleanedPhone = phone.replace(/[\s-]/g, '');
@@ -139,7 +139,7 @@ export function LoginPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               error={phoneError}
-              hint="We'll text a code to this number"
+              hint="We'll send a code to this number on WhatsApp"
             />
             <Button type="submit" loading={submitting} loadingLabel="Sending code">
               Send code
