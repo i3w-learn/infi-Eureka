@@ -77,3 +77,49 @@ check: lint typecheck test
 build:
     cd backend && npm run build
     cd frontend && npm run build
+
+
+# --- Deploy ---
+
+IMAGE_REPO := "asia-south1-docker.pkg.dev/ai-powered-479515/cloud-run-source-deploy/infi-eureka"
+
+# Build a tag and put it live on Cloud Run: just deploy v3
+deploy tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IMAGE="{{IMAGE_REPO}}:{{tag}}"
+
+    # The image is built from THIS FOLDER, not from GitHub — anything uncommitted
+    # goes live too. Printed so that is a decision rather than a surprise.
+    if [ -n "$(git status --porcelain)" ]; then
+      echo "Uncommitted changes that will be deployed:"
+      git status --short
+      echo
+    fi
+
+    # --async, because gcloud exits non-zero when it cannot stream build logs
+    # (this account cannot) even though the build itself is fine. Polling the
+    # build's own status is the only reading that means anything.
+    echo "Building {{tag}}..."
+    BUILD=$(gcloud builds submit \
+      --region asia-south1 \
+      --gcs-source-staging-dir gs://ai-powered-479515_asia-south1_cloudbuild/source \
+      --tag "$IMAGE" --async --format='value(id)')
+
+    while :; do
+      STATUS=$(gcloud builds describe "$BUILD" --region asia-south1 --format='value(status)')
+      case "$STATUS" in
+        SUCCESS) break ;;
+        FAILURE|TIMEOUT|CANCELLED|EXPIRED)
+          echo "Build $STATUS — nothing deployed."
+          echo "Logs: https://console.cloud.google.com/cloud-build/builds;region=asia-south1/$BUILD?project=537688366204"
+          exit 1 ;;
+      esac
+      sleep 5
+    done
+    echo "Build OK."
+
+    gcloud run deploy infi-eureka \
+      --image "$IMAGE" \
+      --region asia-south1 --max-instances 1 \
+      --env-vars-file env.yaml

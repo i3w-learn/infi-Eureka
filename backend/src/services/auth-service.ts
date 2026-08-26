@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import { isProduction } from '../config/env.js';
+import { env, isProduction } from '../config/env.js';
 import type { IOtpDao } from '../dao/interfaces/otp-dao.interface.js';
 import type { IUserDao } from '../dao/interfaces/user-dao.interface.js';
 import type { UserRow } from '../models/user.js';
@@ -27,18 +27,25 @@ const OTP_TTL_SECONDS = 5 * 60;
 const MAX_OTP_ATTEMPTS = 5;
 
 /**
- * A fixed account for manual testing, active only outside production:
+ * A fixed account for manual testing:
  * phone 9999999999 always accepts code 1234, no WhatsApp message, no random code. The
  * account is created on first login and unlocked without payment, so testing
  * never stops at the paywall.
  *
- * The `isProduction` guard means none of this exists on a real deployment —
- * without it this would be a fixed-code backdoor into any account, and a way
- * to hand out free access. Never lift that guard.
+ * Off on a real deployment — without that guard this is a fixed-code way into
+ * one always-premium account, so anyone who knows the number and the code gets
+ * the paid course for free.
+ *
+ * DEMO_LOGIN=true is the one deliberate exception: a deployment with no real
+ * students on it, shown to someone who needs to click through the product.
+ * It must never be set on a deployment taking real signups.
  */
 const TEST_PHONE = '9999999999';
 const TEST_OTP = '1234';
 const TEST_CHALLENGE = 'test-account-challenge';
+
+/** The test account is open outside production, or where a demo asks for it. */
+const testAccountOpen = !isProduction || env.demoLogin;
 
 /** Signing up with a phone that already has an account. */
 export class AlreadyRegisteredError extends AppError {
@@ -98,7 +105,7 @@ export class AuthService {
   ) {}
 
   async requestOtp(phone: string): Promise<OtpRequestResult> {
-    if (!isProduction && phone === TEST_PHONE) {
+    if (testAccountOpen && phone === TEST_PHONE) {
       return {
         message: 'Test account — use code 1234.',
         challengeToken: TEST_CHALLENGE,
@@ -127,7 +134,7 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, otp: string, challengeToken: string): Promise<OtpVerifyResult> {
-    if (!isProduction && phone === TEST_PHONE) {
+    if (testAccountOpen && phone === TEST_PHONE) {
       if (otp !== TEST_OTP) {
         throw new InvalidCredentialsError('The test account code is 1234.');
       }

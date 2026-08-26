@@ -87,12 +87,20 @@ const scoreSummaryProperties = {
 } as const;
 
 export const listTestsSchema = {
+  summary: 'Browse the mock tests',
+  description:
+    'Any signed-in student sees the whole list. The one flagged `isFreeSample: true` can be opened ' +
+    'and taken without paying; the rest need premium.',
   response: {
     200: { type: 'array', items: testSummarySchema },
   },
 } as const;
 
 export const getTestSchema = {
+  summary: "One test's cover details",
+  description:
+    'Duration, question count and total marks — what a student sees before deciding to start. The ' +
+    'free sample opens for anyone signed in; the others need premium.',
   params: uuidParam,
   response: {
     200: testSummarySchema,
@@ -100,6 +108,12 @@ export const getTestSchema = {
 } as const;
 
 export const startAttemptSchema = {
+  summary: 'Start (or resume) an attempt at a test',
+  description:
+    'Step 1 of taking a test. Calling it while an attempt is already live returns that same attempt ' +
+    'rather than starting a new one, so a refresh mid-test is safe. The response is the full paper ' +
+    'plus any answers already saved; `secondsRemaining` counts down to `expiresAt`. The answer key is ' +
+    'deliberately absent — it only appears in the result.',
   params: uuidParam,
   response: {
     201: attemptStateSchema,
@@ -107,6 +121,10 @@ export const startAttemptSchema = {
 } as const;
 
 export const attemptStateResponseSchema = {
+  summary: 'The current state of an attempt',
+  description:
+    'Everything needed to rebuild the test screen after a reload: questions, saved answers, and ' +
+    '`secondsRemaining`. Still no correct answers. Status flips to `expired` once the clock runs out.',
   params: uuidParam,
   response: {
     200: attemptStateSchema,
@@ -114,6 +132,12 @@ export const attemptStateResponseSchema = {
 } as const;
 
 export const saveAnswerSchema = {
+  summary: 'Save one answer',
+  description:
+    'Called every time the student picks an option or flags a question, one question per call. ' +
+    'Re-sending the same question overwrites it, so retries are harmless. `chosenOption: null` clears ' +
+    'a choice; `markedForReview` is the flag-for-later toggle. Rejected once the attempt is submitted ' +
+    'or expired.',
   params: uuidParam,
   body: {
     type: 'object',
@@ -135,6 +159,11 @@ export const saveAnswerSchema = {
 } as const;
 
 export const submitAttemptSchema = {
+  summary: 'Submit the attempt and get the score',
+  description:
+    'Ends the attempt and marks it — NEET rules, so a wrong answer costs `negativeMarks`. The attempt ' +
+    'then locks: no more answers. Returns the score summary; call `/result` for the ' +
+    'question-by-question breakdown.',
   params: uuidParam,
   response: {
     200: {
@@ -149,6 +178,10 @@ export const submitAttemptSchema = {
 } as const;
 
 export const attemptResultSchema = {
+  summary: 'The full result with the answer key',
+  description:
+    'Only available after submit. This is the one place `correctOption` is ever sent, alongside what ' +
+    'the student chose and whether each question came out correct, wrong or unattempted.',
   params: uuidParam,
   response: {
     200: {

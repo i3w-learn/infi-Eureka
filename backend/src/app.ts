@@ -13,6 +13,7 @@ import { container } from './container.js';
 import authGuards from './middleware/auth.js';
 import { registerErrorHandler } from './middleware/error-handler.js';
 import { registerRoutes, API_PREFIX } from './api/routes/index.js';
+import { registerDocs } from './api/openapi.js';
 
 /**
  * Where the Docker image puts the built React app, next to the compiled server.
@@ -98,6 +99,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     // Read once at boot rather than per request: it is an immutable build
     // artifact, and every deep link into the app sends it.
     spaIndexHtml = await readFile(join(FRONTEND_DIR, 'index.html'), 'utf8');
+  }
+
+  // Before the routes: the spec is built from their schemas as they register.
+  if (env.docsEnabled) {
+    await registerDocs(app);
   }
 
   registerErrorHandler(app, { apiPrefix: API_PREFIX, spaIndexHtml });

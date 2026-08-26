@@ -10,6 +10,11 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     '/health',
     {
       schema: {
+        summary: 'Liveness check',
+        description:
+          'Open to everyone. `status` is `ok` only when the API can also reach Postgres; a ' +
+          'database it cannot reach makes this `degraded` while still answering 200, so a ' +
+          'platform health probe does not kill a server that is merely waiting on the database.',
         response: {
           200: {
             type: 'object',

@@ -2,7 +2,12 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { container } from '../../container.js';
 import { env } from '../../config/env.js';
 import { InvalidSignatureError } from '../../exceptions/app-error.js';
-import { activePlanSchema, createOrderSchema, verifyPaymentSchema } from '../../types/payment-schemas.js';
+import {
+  activePlanSchema,
+  createOrderSchema,
+  paymentWebhookSchema,
+  verifyPaymentSchema,
+} from '../../types/payment-schemas.js';
 
 /**
  * Payment calls are limited per user, not per IP — a hostel full of students
@@ -39,7 +44,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
 
   // No JWT — Razorpay calls this. Its signature over the raw bytes is the
   // authentication (FR-P-11). Always 200 on success so Razorpay stops retrying.
-  app.post('/payments/webhook', async (request) => {
+  app.post('/payments/webhook', { schema: paymentWebhookSchema }, async (request) => {
     if (!request.rawBody) throw new InvalidSignatureError();
     const signature = request.headers['x-razorpay-signature'];
     const result = await container.paymentService.webhook(

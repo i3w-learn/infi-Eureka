@@ -32,6 +32,17 @@ export const env = {
 
   corsOrigin: optional('CORS_ORIGIN', 'http://localhost:5173'),
 
+  /** Serves the Swagger UI at /docs. Set to 'false' to hide it in a deployment. */
+  docsEnabled: optional('DOCS_ENABLED', 'true') !== 'false',
+
+  /**
+   * Opens the fixed test account (see auth-service.ts) on a deployment that
+   * would otherwise refuse it. Off unless explicitly set to 'true', because
+   * anyone who knows the number and code then gets a free premium account.
+   * Only for a demo with no real students on it.
+   */
+  demoLogin: optional('DEMO_LOGIN', 'false') === 'true',
+
   razorpay: {
     keyId: optional('RAZORPAY_KEY_ID', ''),
     keySecret: optional('RAZORPAY_KEY_SECRET', ''),

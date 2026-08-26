@@ -35,6 +35,11 @@ const documentDetailSchema = {
 } as const;
 
 export const listLibrarySchema = {
+  summary: 'Browse the PDF library',
+  description:
+    'Formula sheets and NCERT highlight chapters. `kind` is required; `subject` and `grade` narrow it ' +
+    'further. Any signed-in student sees the catalogue, but no download link appears here — that ' +
+    'comes from opening one.',
   querystring: {
     type: 'object',
     required: ['kind'],
@@ -51,6 +56,10 @@ export const listLibrarySchema = {
 } as const;
 
 export const openLibraryDocumentSchema = {
+  summary: 'Open one PDF',
+  description:
+    'Returns the same entry plus the `url` to the file. This is where payment is checked, with one ' +
+    'hole: documents flagged `isFreeSample` open for any signed-in student.',
   params: uuidParam,
   response: {
     200: documentDetailSchema,

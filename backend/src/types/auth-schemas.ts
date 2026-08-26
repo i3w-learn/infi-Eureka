@@ -17,6 +17,12 @@ const publicUserSchema = {
 } as const;
 
 export const requestOtpSchema = {
+  summary: 'Step 1 of login — send a one-time code to a phone',
+  description:
+    'Sends a 4-digit code over WhatsApp and returns a `challengeToken`. Keep both the phone ' +
+    'number and that token; step 2 needs them together. Outside production the code also ' +
+    'comes back as `devOtp`, so you can finish the flow without a real WhatsApp message. ' +
+    'Rate limited per IP (`AUTH_RATE_LIMIT_MAX`, default 5/minute).',
   body: {
     type: 'object',
     required: ['phone'],
@@ -41,6 +47,12 @@ export const requestOtpSchema = {
 } as const;
 
 export const verifyOtpSchema = {
+  summary: 'Step 2 of login — exchange the code for a token',
+  description:
+    'Send the phone, the 4 digits, and the `challengeToken` from step 1. The `isNewUser` flag ' +
+    'decides what the returned `accessToken` is: `false` means it is a full session token — ' +
+    'paste it into **Authorize** and you are done. `true` means it is a short-lived ' +
+    'registration token accepted only by `/auth/register`; every other route rejects it.',
   body: {
     type: 'object',
     required: ['phone', 'otp', 'challengeToken'],
@@ -64,6 +76,11 @@ export const verifyOtpSchema = {
 } as const;
 
 export const registerSchema = {
+  summary: 'Step 3 of login — create the account (new users only)',
+  description:
+    'Only for `isNewUser: true`. Put the registration token from step 2 in the `accessToken` ' +
+    'body field (not the header), with `dateOfBirth` as `DD-MM-YYYY`. Everything else is ' +
+    'optional onboarding detail. Returns the real session token plus the created user.',
   body: {
     type: 'object',
     required: ['phone', 'dateOfBirth', 'accessToken'],
@@ -92,6 +109,11 @@ export const registerSchema = {
 } as const;
 
 export const meSchema = {
+  summary: 'The signed-in user',
+  description:
+    'Profile for whoever the bearer token belongs to. Also the cheapest way to check two ' +
+    'things: that a token is still valid (401 if not), and whether the student has paid — ' +
+    '`isPremium` is what gates videos, notes, the PDF library and mock tests.',
   response: {
     200: publicUserSchema,
   },
