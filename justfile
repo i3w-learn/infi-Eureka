@@ -106,21 +106,18 @@ deploy tag:
       --gcs-source-staging-dir gs://ai-powered-479515_asia-south1_cloudbuild/source \
       --tag "$IMAGE" --async --format='value(id)')
 
-    # Poll rather than stream: gcloud cannot stream this project's build logs.
-    # The elapsed counter is so a two-minute build does not look like a hang.
-    SECONDS=0
     while :; do
       STATUS=$(gcloud builds describe "$BUILD" --region asia-south1 --format='value(status)')
       case "$STATUS" in
-        SUCCESS) printf '\r  build succeeded in %ss.        \n' "$SECONDS"; break ;;
+        SUCCESS) break ;;
         FAILURE|TIMEOUT|CANCELLED|EXPIRED)
-          printf '\r  build %s after %ss — nothing deployed.\n' "$STATUS" "$SECONDS"
-          echo "  logs: https://console.cloud.google.com/cloud-build/builds;region=asia-south1/$BUILD?project=537688366204"
+          echo "Build $STATUS — nothing deployed."
+          echo "Logs: https://console.cloud.google.com/cloud-build/builds;region=asia-south1/$BUILD?project=537688366204"
           exit 1 ;;
       esac
-      printf '\r  %s... %ss' "$STATUS" "$SECONDS"
       sleep 5
     done
+    echo "Build OK."
 
     gcloud run deploy infi-eureka \
       --image "$IMAGE" \

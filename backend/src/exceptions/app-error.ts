@@ -77,6 +77,17 @@ export class PaymentsNotConfiguredError extends AppError {
   }
 }
 
+/**
+ * The WhatsApp provider would not take the code — its keys are missing, or it
+ * refused the message. Deliberately vague: the student is not told which,
+ * because neither is anything they can fix.
+ */
+export class OtpDeliveryError extends AppError {
+  constructor(message = 'We could not send the code on WhatsApp. Please try again in a moment.') {
+    super(message, 503, 'OTP_DELIVERY_FAILED');
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(message = 'Not found') {
     super(message, 404, 'NOT_FOUND');

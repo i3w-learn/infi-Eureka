@@ -50,6 +50,21 @@ export const env = {
   },
 
   /**
+   * Gupshup sends the login code over WhatsApp. All four are optional so the
+   * server still boots without them — the container then falls back to the
+   * console sender, exactly as the Razorpay keys work.
+   */
+  gupshup: {
+    apiKey: optional('GUPSHUP_API_KEY', ''),
+    /** The WhatsApp number messages are sent from, with country code. */
+    sourceNumber: optional('GUPSHUP_SOURCE_NUMBER', ''),
+    /** Gupshup's name for the app that owns the source number. */
+    appName: optional('GUPSHUP_APP_NAME', ''),
+    /** The Meta-approved authentication template that carries the code. */
+    templateId: optional('GUPSHUP_TEMPLATE_ID', ''),
+  },
+
+  /**
    * Guards POST /videos/upload until there is a real admin panel. Empty means
    * uploads are disabled; content then goes in through seeds only.
    */

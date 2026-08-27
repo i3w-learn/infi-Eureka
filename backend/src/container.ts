@@ -1,4 +1,4 @@
-import { env } from './config/env.js';
+import { env, isTest } from './config/env.js';
 import { HealthDao } from './dao/postgres/health-dao.js';
 import { UserDao } from './dao/postgres/user-dao.js';
 import { OtpDao } from './dao/postgres/otp-dao.js';
@@ -14,6 +14,8 @@ import { PaymentDao } from './dao/postgres/payment-dao.js';
 import { LibraryDao } from './dao/postgres/library-dao.js';
 import { LocalStorage } from './integrations/storage/local-storage.js';
 import { RazorpayGateway } from './integrations/razorpay/razorpay-gateway.js';
+import { GupshupOtpSender } from './integrations/whatsapp/gupshup-sender.js';
+import { ConsoleOtpSender } from './integrations/whatsapp/console-sender.js';
 import { HealthService } from './services/health-service.js';
 import { AuthService } from './services/auth-service.js';
 import { VideoService } from './services/video-service.js';
@@ -23,6 +25,7 @@ import { AttemptService } from './services/attempt-service.js';
 import { PaymentService } from './services/payment-service.js';
 import { LibraryService } from './services/library-service.js';
 import type { IStorage } from './integrations/storage/storage.interface.js';
+import type { IOtpSender } from './integrations/whatsapp/otp-sender.interface.js';
 
 /**
  * The composition root: the one and only place where interfaces are bound to
@@ -35,6 +38,20 @@ function buildStorage(): IStorage {
   if (env.storage.driver === 'local') return new LocalStorage(env.storage.localPath);
   // An S3/R2 class slots in here for production, behind the same interface.
   throw new Error(`Unsupported STORAGE_DRIVER "${env.storage.driver}" — only "local" is implemented.`);
+}
+
+/**
+ * Real WhatsApp once the Gupshup keys are in .env, the console otherwise.
+ * Missing keys are not an error here: the server has to boot for everything
+ * that is not login, and `AuthService` refuses to pretend a code was sent.
+ *
+ * Tests never get the real sender even with keys present — they would spend
+ * real money sending WhatsApp messages to whatever number a fixture invented.
+ */
+function buildOtpSender(): IOtpSender {
+  if (isTest) return new ConsoleOtpSender();
+  const gupshup = new GupshupOtpSender(env.gupshup);
+  return gupshup.isConfigured() ? gupshup : new ConsoleOtpSender();
 }
 
 function buildContainer() {
@@ -54,6 +71,7 @@ function buildContainer() {
 
   const storage = buildStorage();
   const gateway = new RazorpayGateway(env.razorpay.keyId, env.razorpay.keySecret);
+  const otpSender = buildOtpSender();
 
   return {
     // DAOs exposed only where middleware needs them directly.
@@ -64,7 +82,7 @@ function buildContainer() {
     videoDao,
 
     healthService: new HealthService(healthDao),
-    authService: new AuthService(userDao, otpDao),
+    authService: new AuthService(userDao, otpDao, otpSender),
     videoService: new VideoService(videoDao, storage),
     noteService: new NoteService(noteDao, highlightDao),
     testService: new TestService(testDao),

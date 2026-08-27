@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { env, isProduction } from '../config/env.js';
 import type { IOtpDao } from '../dao/interfaces/otp-dao.interface.js';
 import type { IUserDao } from '../dao/interfaces/user-dao.interface.js';
+import type { IOtpSender } from '../integrations/whatsapp/otp-sender.interface.js';
 import type { UserRow } from '../models/user.js';
 import type {
   OtpRequestResult,
@@ -13,6 +14,7 @@ import type {
 import {
   InvalidCredentialsError,
   NotFoundError,
+  OtpDeliveryError,
   UnauthenticatedError,
   ValidationError,
 } from '../exceptions/app-error.js';
@@ -94,14 +96,16 @@ function toIsoDate(ddmmyyyy: string): string {
 /**
  * The phone + OTP flow: request a code, verify it, register if new.
  *
- * There is no WhatsApp provider yet, so outside production the code is returned in
- * the response (`devOtp`) and printed to the server log. The WhatsApp integration
- * will slot into `requestOtp` without changing any interface.
+ * The code goes out through `IOtpSender` — Gupshup's WhatsApp API once its keys
+ * are in .env, the server log otherwise. When it only reached the log, the code
+ * also comes back in the response as `devOtp` so the flow can be walked through
+ * without a real phone; with a provider connected that field is never sent.
  */
 export class AuthService {
   constructor(
     private readonly userDao: IUserDao,
     private readonly otpDao: IOtpDao,
+    private readonly otpSender: IOtpSender,
   ) {}
 
   async requestOtp(phone: string): Promise<OtpRequestResult> {
@@ -114,22 +118,30 @@ export class AuthService {
       };
     }
 
+    // Whether the code will actually reach the student's phone, or only the log.
+    const delivered = this.otpSender.isConfigured();
+    // On a real deployment a code nobody receives is a failure, not something
+    // to paper over with a cheerful "we sent it".
+    if (isProduction && !delivered) throw new OtpDeliveryError();
+
     const otp = String(randomInt(1000, 10000));
+
+    // Sent before the challenge is stored, so a provider failure leaves no row
+    // behind — the student just asks for a new code.
+    await this.otpSender.sendOtp(phone, otp);
+
     const otpHash = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
-
     const challengeToken = await this.otpDao.createChallenge(phone, otpHash, expiresAt);
 
-    if (!isProduction) {
-      // Stands in for the WhatsApp message during development.
-      console.error(`[dev] OTP for ${phone}: ${otp}`);
-    }
-
     return {
-      message: 'We sent a 4-digit code on WhatsApp.',
+      message: delivered
+        ? 'We sent a 4-digit code on WhatsApp.'
+        : 'WhatsApp is not connected yet — the code is in the response and the server log.',
       challengeToken,
       expiresIn: OTP_TTL_SECONDS,
-      ...(isProduction ? {} : { devOtp: otp }),
+      // Handed back only when it went nowhere a student could read it.
+      ...(delivered ? {} : { devOtp: otp }),
     };
   }
 
