@@ -74,6 +74,10 @@ export function App() {
                 <Route path="/formula-sheets/:documentId" element={<DocumentReaderPage />} />
                 <Route path="/ncert-highlights/:documentId" element={<DocumentReaderPage />} />
 
+                {/* Same reasoning as the readers above: the free one-shot has to
+                    reach GET /videos/:id/watch for the server to allow it. */}
+                <Route path="/videos/:videoId" element={<VideoPlayerPage />} />
+
                 {/* One book's contents. Two segments, so it never collides with
                     the one-segment reader route above. */}
                 <Route
@@ -102,12 +106,16 @@ export function App() {
             {/* Logged in AND paid — opening the actual content */}
             <Route element={<RequirePremium />}>
               <Route element={<AppShell />}>
-                <Route path="/videos/:videoId" element={<VideoPlayerPage />} />
                 <Route path="/notes/:noteId" element={<NoteReaderPage />} />
                 <Route path="/results/:attemptId" element={<ResultsPage />} />
               </Route>
-              {/* No shell during a live paper: a rail of links away from the
-                  question is a way to lose an attempt by accident. */}
+            </Route>
+
+            {/* No shell during a live paper: a rail of links away from the
+                question is a way to lose an attempt by accident. The free
+                sample paper runs here too, so the gate is RequireAuth and the
+                server decides. */}
+            <Route element={<RequireAuth />}>
               <Route path="/mock-tests/:testId/attempt" element={<TestAttemptPage />} />
             </Route>
 

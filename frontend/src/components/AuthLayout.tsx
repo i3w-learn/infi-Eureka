@@ -151,7 +151,10 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
       </div>
 
       {/* Brand panel */}
-      <aside className="auth-panel relative hidden overflow-hidden bg-plum lg:flex lg:flex-col lg:justify-between lg:px-14 lg:py-12">
+      {/* h-screen + sticky is what bounds the panel. Without a height the grid
+          row grows to fit the answer sheet, the sheet never gets cropped, and
+          the paper breakdown below it is pushed off the bottom of the page. */}
+      <aside className="auth-panel relative hidden overflow-hidden bg-plum lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-between lg:px-14 lg:py-12">
         <div
           className="absolute inset-0"
           style={{
@@ -169,8 +172,14 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
         />
         <DriftingBubbles />
 
-        <div className="relative flex flex-1 items-center">
-          <AnswerSheet />
+        {/*
+          The sheet is deliberately taller than the space it gets, so the column
+          runs off the top and bottom of the panel and reads as a fragment of a
+          real sheet. overflow-hidden here is what does the cropping — without
+          it the rows would stretch the panel instead of being cut by it.
+        */}
+        <div className="relative flex min-h-0 flex-1 items-center overflow-hidden">
+          <AnswerSheet variant="panel" />
         </div>
 
         <div className="relative mt-10 max-w-md shrink-0">

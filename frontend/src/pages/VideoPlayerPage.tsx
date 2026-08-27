@@ -67,7 +67,7 @@ export function VideoPlayerPage() {
     } catch (err) {
       setPlaying(false);
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
-      if (err instanceof ApiError && err.status === 402) {
+      if (err instanceof ApiError && err.needsPayment) {
         setLocked(true);
         return;
       }

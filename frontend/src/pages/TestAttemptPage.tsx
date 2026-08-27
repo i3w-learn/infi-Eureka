@@ -91,6 +91,7 @@ export function TestAttemptPage() {
   const [attempt, setAttempt] = useState<AttemptState | null>(null);
   const [title, setTitle] = useState('Mock test');
   const [loadError, setLoadError] = useState<string>();
+  const [locked, setLocked] = useState(false);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Option | null>>({});
   const [marked, setMarked] = useState<Set<string>>(new Set());
@@ -129,6 +130,12 @@ export function TestAttemptPage() {
       })
       .catch((error) => {
         if (cancelled) return;
+        // A locked paper is not a failure — it is the paywall. The server is
+        // the only thing that knows which paper is the free sample.
+        if (error instanceof ApiError && error.needsPayment) {
+          setLocked(true);
+          return;
+        }
         setLoadError(
           error instanceof ApiError ? error.message : 'Could not load the test. Check your connection.',
         );
@@ -259,6 +266,29 @@ export function TestAttemptPage() {
   }
 
   // ---- Render states ----
+  if (locked) {
+    return (
+      <div className="cbt grid min-h-screen place-items-center bg-paper px-6 text-center">
+        <div className="max-w-md">
+          <p className="font-display text-[1.25rem] font-bold">This paper is part of the full course.</p>
+          <p className="mt-2 text-sm text-ink-soft">
+            One payment opens every mock test, lecture and note — no renewals.
+          </p>
+          <button type="button" onClick={() => navigate('/unlock')} className="cbt-btn mt-5">
+            Unlock everything — ₹3,499
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/mock-tests')}
+            className="mt-3 block w-full text-sm text-ink-soft underline underline-offset-4"
+          >
+            Back to tests
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loadError) {
     return (
       <div className="cbt grid min-h-screen place-items-center bg-paper px-6 text-center">
