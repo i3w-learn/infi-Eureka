@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { container } from '../../container.js';
 import { env } from '../../config/env.js';
-import { meSchema, registerSchema, requestOtpSchema, verifyOtpSchema } from '../../types/auth-schemas.js';
+import {
+  deleteUserSchema,
+  meSchema,
+  registerSchema,
+  requestOtpSchema,
+  verifyOtpSchema,
+} from '../../types/auth-schemas.js';
+import { requireAdminKey } from '../../middleware/admin-key.js';
 import type { RegisterInput } from '../../services/auth-service.js';
 
 /** OTP endpoints are brute-force targets, so they get the tight limit (NFR-S-05). */
@@ -34,5 +41,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/me', { schema: meSchema, onRequest: [app.requireAuth] }, async (request) =>
     container.authService.me(request.user.sub),
+  );
+
+  // Account removal until there is an admin panel. Destructive and unrecoverable,
+  // so it is behind the admin key rather than a student's own token.
+  app.delete<{ Body: { phone: string } }>(
+    '/users',
+    { schema: deleteUserSchema },
+    async (request, reply) => {
+      requireAdminKey(request);
+      await container.authService.deleteAccount(request.body.phone);
+      return reply.status(204).send();
+    },
   );
 }

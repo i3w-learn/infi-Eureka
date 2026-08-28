@@ -49,6 +49,11 @@ export function validatePhone(value: string): string | undefined {
   return undefined;
 }
 
+/** Chip groups on signup: every question has to be answered. */
+export function validateChoice(values: string[], message: string): string | undefined {
+  return values.length ? undefined : message;
+}
+
 export function validateOtp(value: string): string | undefined {
   if (!value.trim()) return 'Enter the 4-digit code';
   if (!/^\d{4}$/.test(value.trim())) return 'The code is 4 digits';

@@ -1,8 +1,8 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { MultipartValue } from '@fastify/multipart';
 import { container } from '../../container.js';
-import { env } from '../../config/env.js';
-import { NotFoundError, ValidationError } from '../../exceptions/app-error.js';
+import { ValidationError } from '../../exceptions/app-error.js';
+import { requireAdminKey } from '../../middleware/admin-key.js';
 import {
   addVideoByLinkSchema,
   getVideoSchema,
@@ -73,13 +73,7 @@ export async function videoRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // Content ingestion until there is an admin panel. Guarded by ADMIN_API_KEY
-  // from .env; when the key is unset these routes pretend not to exist.
-  function requireAdminKey(request: FastifyRequest): void {
-    if (env.adminApiKey === '' || request.headers['x-admin-key'] !== env.adminApiKey) {
-      throw new NotFoundError(`Route ${request.method} ${request.url} does not exist`);
-    }
-  }
+  // Content ingestion below, until there is an admin panel.
 
   // Catalogue a video we were given a link for.
   app.post<{ Body: AddVideoByLinkInput }>(

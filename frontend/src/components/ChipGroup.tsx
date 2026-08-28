@@ -9,6 +9,8 @@ interface ChipGroupProps {
   label: string;
   /** Shown faintly next to the label, e.g. "optional". */
   tag?: string;
+  /** Shown under the chips when nothing is picked. */
+  error?: string | undefined;
   options: readonly Option[];
   selected: string[];
   onChange: (next: string[]) => void;
@@ -21,7 +23,15 @@ interface ChipGroupProps {
  * that fills marigold when picked — answering a question by darkening a bubble,
  * same as the exam.
  */
-export function ChipGroup({ label, tag, options, selected, onChange, multi = false }: ChipGroupProps) {
+export function ChipGroup({
+  label,
+  tag,
+  error,
+  options,
+  selected,
+  onChange,
+  multi = false,
+}: ChipGroupProps) {
   function toggle(value: string) {
     if (multi) {
       onChange(
@@ -33,7 +43,7 @@ export function ChipGroup({ label, tag, options, selected, onChange, multi = fal
   }
 
   return (
-    <fieldset>
+    <fieldset aria-invalid={error ? true : undefined}>
       <legend className="text-sm font-medium text-ink">
         {label}
         {tag ? <span className="ml-2 text-[0.75rem] font-normal text-ink-faint">{tag}</span> : null}
@@ -75,6 +85,8 @@ export function ChipGroup({ label, tag, options, selected, onChange, multi = fal
           );
         })}
       </div>
+
+      {error ? <p className="mt-1.5 text-[0.8rem] text-danger">{error}</p> : null}
     </fieldset>
   );
 }

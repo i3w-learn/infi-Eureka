@@ -108,6 +108,26 @@ export const registerSchema = {
   },
 } as const;
 
+export const deleteUserSchema = {
+  summary: 'Erase an account by phone number (admin)',
+  description:
+    'Deletes the account and everything attached to it — highlights, mock-test attempts and ' +
+    'payment records — and returns 204. There is no undo and no soft delete. ' +
+    'Send `ADMIN_API_KEY` in the `x-admin-key` header; when that variable is unset on the ' +
+    'server this route answers 404, as if it did not exist. ' +
+    'The number must match what was stored exactly, digits and any `+91` included. ' +
+    'It goes in the body rather than the path so it stays out of URLs and access logs.',
+  security: [{ adminKey: [] }],
+  body: {
+    type: 'object',
+    required: ['phone'],
+    additionalProperties: false,
+    properties: {
+      phone: { type: 'string', pattern: PHONE_PATTERN },
+    },
+  },
+} as const;
+
 export const meSchema = {
   summary: 'The signed-in user',
   description:

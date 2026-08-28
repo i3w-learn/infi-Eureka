@@ -60,36 +60,6 @@ function CountUp({ to, durationMs = 1100 }: { to: number; durationMs?: number })
   return <span className="tabular-nums">{value}</span>;
 }
 
-const DRIFTERS = [
-  { size: 90, left: '8%', duration: 26, delay: 0 },
-  { size: 46, left: '30%', duration: 21, delay: 6 },
-  { size: 140, left: '68%', duration: 32, delay: 2 },
-  { size: 60, left: '85%', duration: 24, delay: 10 },
-];
-
-/** Slow-rising empty answer bubbles that keep the panel alive after load. */
-function DriftingBubbles() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {DRIFTERS.map((bubble, index) => (
-        <motion.span
-          key={index}
-          className="absolute rounded-bubble border border-white/10"
-          style={{ width: bubble.size, height: bubble.size, left: bubble.left, bottom: -bubble.size }}
-          animate={{ y: [0, -900], opacity: [0, 0.7, 0.7, 0] }}
-          transition={{
-            duration: bubble.duration,
-            delay: bubble.delay,
-            repeat: Infinity,
-            ease: 'linear',
-            times: [0, 0.1, 0.85, 1],
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 interface AuthLayoutProps {
   title: string;
   subtitle: string;
@@ -170,15 +140,14 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
             backgroundSize: '26px 26px',
           }}
         />
-        <DriftingBubbles />
-
         {/*
-          The sheet is deliberately taller than the space it gets, so the column
-          runs off the top and bottom of the panel and reads as a fragment of a
-          real sheet. overflow-hidden here is what does the cropping — without
-          it the rows would stretch the panel instead of being cut by it.
+          The sheet is deliberately taller than the space it gets, so it runs
+          off the top and bottom of the panel and reads as a fragment of a real
+          sheet. overflow-hidden does the cropping; the mask turns that crop
+          into a fade, so the cut rows dissolve instead of being sliced through
+          the middle.
         */}
-        <div className="relative flex min-h-0 flex-1 items-center overflow-hidden">
+        <div className="auth-sheet-window relative flex min-h-0 flex-1 items-center overflow-hidden">
           <AnswerSheet variant="panel" />
         </div>
 

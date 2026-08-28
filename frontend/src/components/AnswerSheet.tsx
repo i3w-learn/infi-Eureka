@@ -8,12 +8,13 @@
  *
  * Two variants, because the crop only works if something actually gets cut:
  *
- * - `card` sits inside the bordered card on the landing page. The card edge is
- *   the crop, so one short column of rows is all it needs.
+ * - `card` sits inside the bordered card on the landing page: two short
+ *   columns side by side, the way a real sheet lays out a section. One column
+ *   left the right half of the card empty and read as a diagram, not a sheet.
  * - `panel` fills the tall brand panel beside the auth forms. It runs taller
- *   than the space it is given and flows into as many columns as the panel is
- *   wide, so it bleeds off the top and bottom and fills the width on any
- *   monitor. The panel is a percentage of the viewport, so a fixed number of
+ *   than the space it is given, so it bleeds off the top and bottom, and flows
+ *   into as many whole columns as the panel is wide, so it fills the width on
+ *   any monitor. The panel is a percentage of the viewport, so a fixed number of
  *   columns either leaves half of it empty on a wide screen or overruns a
  *   narrow one — letting the browser count them is the only thing that holds
  *   at both ends.
@@ -41,8 +42,8 @@ const ANSWERS =
 
 const OPTIONS = ['A', 'B', 'C', 'D'];
 
-/** The window the landing-page card shows - questions 17 to 25. */
-const CARD_WINDOW = { start: 8, count: 9 };
+/** The window the landing-page card shows - questions 17 to 34, nine per column. */
+const CARD_WINDOW = { start: 8, count: 18 };
 
 /** One column's worth of bubbles, in px. Drives the browser's column count. */
 const COLUMN_WIDTH = 186;
@@ -60,9 +61,10 @@ const FILL_RUN_SECONDS = 1.5;
 const VARIANTS = {
   card: {
     window: CARD_WINDOW,
-    container: 'flex flex-col',
-    containerStyle: undefined,
-    row: 'mb-[0.7rem] gap-3',
+    container: 'w-full',
+    // Two balanced columns: the browser splits the rows evenly between them.
+    containerStyle: { columnCount: 2, columnGap: '1.5rem' },
+    row: 'mb-[0.7rem] gap-3 break-inside-avoid',
     bubble: 'h-[1.35rem] w-[1.35rem]',
     bubbleGap: 'gap-2',
     letter: 'text-[0.6rem]',
@@ -70,20 +72,20 @@ const VARIANTS = {
   },
   panel: {
     window: { start: 0, count: ANSWERS.length },
-    // shrink-0: it is a flex item, and the default flex-shrink would pull it
-    // straight back to the panel width and undo the overhang below.
-    container: 'shrink-0',
+    container: 'w-full',
     containerStyle: {
-      // A column wider than the panel, so one always starts and gets cut by
-      // the panel edge. Without it the browser fits a whole number of columns
-      // and whatever is left over sits as dead space down the right-hand side.
-      width: `calc(100% + ${COLUMN_WIDTH}px)`,
+      // `columnWidth` is a minimum: the browser fits as many columns as the
+      // panel can hold and then widens them to share the leftover, so the
+      // sheet fills the width with no dead strip down the right-hand side and
+      // no half-column cut through its numbers.
       height: `calc(100% + ${PANEL_BLEED})`,
       columnWidth: `${COLUMN_WIDTH}px`,
       columnGap: COLUMN_GAP,
       columnFill: 'auto' as const,
     },
-    row: 'mb-[0.85rem] gap-4 break-inside-avoid',
+    // Centred inside its widened column, so the leftover width sits evenly on
+    // both sides of the sheet instead of piling up on the right.
+    row: 'mb-[0.85rem] gap-4 break-inside-avoid justify-center',
     bubble: 'h-[1.75rem] w-[1.75rem]',
     bubbleGap: 'gap-2.5',
     letter: 'text-[0.72rem]',

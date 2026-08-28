@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
 import { FormError } from '../components/FormError';
+import { FormNotice } from '../components/FormNotice';
 import { TextField } from '../components/TextField';
 import { ApiError, tokenStore } from '../api/client';
 import { otpAuthApi } from '../api/otp-auth.api';
@@ -14,6 +15,9 @@ import { validateOtp, validatePhone } from '../lib/validation';
 /**
  * Login is the same phone + OTP handshake as signup, minus registration:
  * a number that verifies but has no account is sent to signup instead.
+ *
+ * Signup sends people here the other way — a number that already has an account
+ * arrives with a `notice` to explain why, and the number already filled in.
  */
 type Step = 'phone' | 'otp';
 
@@ -29,16 +33,26 @@ const COPY: Record<Step, { title: string; subtitle: string }> = {
   otp: { title: 'Check your phone', subtitle: 'We sent a 4-digit code on WhatsApp. Enter it here.' },
 };
 
+/** Shown on the signup page when login finds no account for a verified number. */
+const NO_ACCOUNT_NOTICE =
+  'No account with this number yet. Your number is verified — just tell us about yourself.';
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refresh } = useAuth();
 
+  /** Set by signup when it turns an existing number away; also carries the number. */
+  const handoff = location.state as
+    | { notice?: string; phone?: string; from?: { pathname: string } }
+    | null;
+
   const [step, setStep] = useState<Step>('phone');
   const [formError, setFormError] = useState<string>();
+  const [notice, setNotice] = useState(handoff?.notice);
   const [submitting, setSubmitting] = useState(false);
 
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(handoff?.phone ?? '');
   const [phoneError, setPhoneError] = useState<string>();
   const [challengeToken, setChallengeToken] = useState('');
   const [otp, setOtp] = useState('');
@@ -49,7 +63,7 @@ export function LoginPage() {
   const cleanedPhone = phone.replace(/[\s-]/g, '');
 
   /** Where the guard sent them from, so they land back where they were headed. */
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+  const from = handoff?.from?.pathname;
 
   function fail(error: unknown) {
     setFormError(
@@ -66,6 +80,8 @@ export function LoginPage() {
     if (error) return;
 
     setFormError(undefined);
+    // They have acted on the handoff — the explanation has done its job.
+    setNotice(undefined);
     setSubmitting(true);
     try {
       const response = await otpAuthApi.requestOtp(cleanedPhone);
@@ -96,7 +112,18 @@ export function LoginPage() {
       });
 
       if (response.isNewUser) {
-        setFormError('No account with this number yet — create one below.');
+        // The code they just entered verified this number, and the response
+        // carries the registration token that proves it. Hand both to signup
+        // so they finish there — sending them back to type the number again
+        // would buy and burn a second WhatsApp message for nothing.
+        navigate('/signup', {
+          replace: true,
+          state: {
+            notice: NO_ACCOUNT_NOTICE,
+            phone: cleanedPhone,
+            accessToken: response.accessToken,
+          },
+        });
         return;
       }
 
@@ -124,6 +151,7 @@ export function LoginPage() {
         </>
       }
     >
+      <FormNotice message={notice} />
       <FormError message={formError} />
 
       <AnimatePresence mode="wait">

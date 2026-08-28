@@ -287,17 +287,31 @@
     font-weight: 700;
     font-size: 1.1rem;
     box-shadow: 2px 2px 0 var(--brut-line);
-    transition: background 0.12s ease;
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
   }
 
+  /* Hover fills the bubble the way a pencil does on the real sheet — in the
+     brand plum, with the letter going light so it stays legible. */
   .sticker-card:hover .sticker-option {
-    background: var(--brut-accent);
+    background: var(--color-plum);
+    color: #ffffff;
   }
 
   .auth-error {
     border: 1px solid var(--brut-line);
     border-radius: 16px;
     background: var(--brut-accent-exit);
+    box-shadow: 3px 3px 0 var(--brut-line);
+  }
+
+  /* Same card as .auth-error, in the marigold wash: nothing has gone wrong,
+     the person just needs to be told where to go. */
+  .auth-notice {
+    border: 1px solid var(--brut-line);
+    border-radius: 16px;
+    background: var(--color-marigold-wash);
     box-shadow: 3px 3px 0 var(--brut-line);
   }
 
@@ -1011,4 +1025,13 @@
   .sheet-bubble {
     animation: sheet-bubble-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
+}
+
+/* The auth panel's answer sheet is cropped top and bottom. A hard crop slices
+   a row through its bubbles and reads as broken; fading the last stretch of
+   each edge makes the same crop read as the sheet continuing off the page. */
+.auth-sheet-window {
+  --fade: 3.5rem;
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
 }

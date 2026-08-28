@@ -230,4 +230,17 @@ export class AuthService {
     if (!user) throw new NotFoundError('This account no longer exists.');
     return toPublicUser(user);
   }
+
+  /**
+   * Erases an account and its history. Admin-only, and there is no undo: the
+   * student's highlights, attempts and payment records all go with it.
+   *
+   * The number has to match what was stored exactly, the same way login looks
+   * it up — nothing normalises phone numbers on the way in, so `9876543210`
+   * and `+919876543210` are two different accounts as far as this is concerned.
+   */
+  async deleteAccount(phone: string): Promise<void> {
+    const deleted = await this.userDao.deleteByPhone(phone);
+    if (!deleted) throw new NotFoundError('No account is registered with that number.');
+  }
 }
