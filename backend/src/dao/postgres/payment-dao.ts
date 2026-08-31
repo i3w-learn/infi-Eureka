@@ -35,7 +35,11 @@ export class PaymentDao implements IPaymentDao {
       const payment = rows[0];
       if (!payment) return 'not_found';
       if (payment.status === 'paid') return 'already_paid';
-      if (payment.status !== 'created') return 'invalid_transition';
+      // 'failed' is not the end of an order. Razorpay lets a student retry the
+      // same order after a declined attempt, so `payment.failed` followed by
+      // `payment.captured` is an ordinary sequence — and a captured payment is
+      // proof the money moved, whatever came before it. Refusing that upgrade
+      // takes the money and withholds the course.
 
       await client.query(
         `UPDATE payments

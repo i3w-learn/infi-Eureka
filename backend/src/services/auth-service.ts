@@ -5,6 +5,7 @@ import type { IOtpDao } from '../dao/interfaces/otp-dao.interface.js';
 import type { IUserDao } from '../dao/interfaces/user-dao.interface.js';
 import type { IOtpSender } from '../integrations/whatsapp/otp-sender.interface.js';
 import type { UserRow } from '../models/user.js';
+import { normalisePhone } from '../utils/phone.js';
 import type {
   OtpRequestResult,
   OtpVerifyResult,
@@ -108,7 +109,8 @@ export class AuthService {
     private readonly otpSender: IOtpSender,
   ) {}
 
-  async requestOtp(phone: string): Promise<OtpRequestResult> {
+  async requestOtp(rawPhone: string): Promise<OtpRequestResult> {
+    const phone = normalisePhone(rawPhone);
     if (testAccountOpen && phone === TEST_PHONE) {
       return {
         message: 'Test account — use code 1234.',
@@ -145,7 +147,8 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(phone: string, otp: string, challengeToken: string): Promise<OtpVerifyResult> {
+  async verifyOtp(rawPhone: string, otp: string, challengeToken: string): Promise<OtpVerifyResult> {
+    const phone = normalisePhone(rawPhone);
     if (testAccountOpen && phone === TEST_PHONE) {
       if (otp !== TEST_OTP) {
         throw new InvalidCredentialsError('The test account code is 1234.');
@@ -203,17 +206,18 @@ export class AuthService {
   }
 
   async register(input: RegisterInput): Promise<RegisterResult> {
+    const phone = normalisePhone(input.phone);
     const verifiedPhone = readRegistrationToken(input.accessToken);
-    if (!verifiedPhone || verifiedPhone !== input.phone) {
+    if (!verifiedPhone || verifiedPhone !== phone) {
       throw new UnauthenticatedError('Your verification has expired. Start again from your phone number.');
     }
 
-    if (await this.userDao.findByPhone(input.phone)) {
+    if (await this.userDao.findByPhone(phone)) {
       throw new AlreadyRegisteredError();
     }
 
     const user = await this.userDao.create({
-      phone: input.phone,
+      phone,
       dateOfBirth: toIsoDate(input.dateOfBirth),
       username: input.username,
       studentClass: input.class,
@@ -235,12 +239,11 @@ export class AuthService {
    * Erases an account and its history. Admin-only, and there is no undo: the
    * student's highlights, attempts and payment records all go with it.
    *
-   * The number has to match what was stored exactly, the same way login looks
-   * it up — nothing normalises phone numbers on the way in, so `9876543210`
-   * and `+919876543210` are two different accounts as far as this is concerned.
+   * The number is normalised first, the same way login normalises it, so
+   * `9876543210` and `+91 98765 43210` both find the one account they name.
    */
-  async deleteAccount(phone: string): Promise<void> {
-    const deleted = await this.userDao.deleteByPhone(phone);
+  async deleteAccount(rawPhone: string): Promise<void> {
+    const deleted = await this.userDao.deleteByPhone(normalisePhone(rawPhone));
     if (!deleted) throw new NotFoundError('No account is registered with that number.');
   }
 }

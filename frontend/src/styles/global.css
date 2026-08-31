@@ -582,6 +582,7 @@
     --cbt-answered: #32d74b;
     --cbt-review: #bf5af2;
     --cbt-both: #ff9f0a;
+    --cbt-seen: #e5484d;
     --cbt-unvisited: #b8aa8a;
 
     color: var(--brut-ink);
@@ -741,19 +742,56 @@
     box-shadow: 2px 2px 0 var(--brut-line);
   }
 
-  .cbt-cell[data-status='answered'] {
-    background: color-mix(in srgb, var(--cbt-answered) 22%, white);
+  /* ---- Palette status colours ----
+     Each status names its colour ONCE, in a selector that hits both the grid
+     cell and the legend swatch describing it. How strongly that colour is laid
+     on is the only thing the two disagree about, and that lives in the two
+     rules below — a 12px swatch needs more saturation than a 36px circle to
+     read as the same thing.
+
+     Written this way a status the stylesheet has forgotten comes out wrong in
+     BOTH places at once, which someone notices. The old code let the legend
+     hardcode its own colours inline, so "Not visited" advertised a taupe that
+     no cell ever wore. */
+  .cbt-cell[data-status='answered'],
+  .cbt-swatch[data-status='answered'] {
+    --cbt-fill: var(--cbt-answered);
     color: #1c6b2c;
   }
 
-  .cbt-cell[data-status='review'] {
-    background: color-mix(in srgb, var(--cbt-review) 22%, white);
+  .cbt-cell[data-status='review'],
+  .cbt-swatch[data-status='review'] {
+    --cbt-fill: var(--cbt-review);
     color: #6c2b8c;
   }
 
-  .cbt-cell[data-status='answered-review'] {
-    background: color-mix(in srgb, var(--cbt-both) 26%, white);
+  .cbt-cell[data-status='answered-review'],
+  .cbt-swatch[data-status='answered-review'] {
+    --cbt-fill: var(--cbt-both);
+    --cbt-cell-mix: 26%;
     color: #8a5300;
+  }
+
+  /* Visited and left blank. NTA's own player marks this one, and without it a
+     question you have read is indistinguishable from one you have never
+     opened — the single most useful thing the palette can tell you late in a
+     paper. */
+  .cbt-cell[data-status='seen'],
+  .cbt-swatch[data-status='seen'] {
+    --cbt-fill: var(--cbt-seen);
+    color: #8c1f18;
+  }
+
+  /* 'unvisited' names no fill on purpose: untouched stays the plain surface,
+     the same white the NTA player uses. The swatch inherits that, so the legend
+     shows the circle it is actually pointing at. */
+  .cbt-cell[data-status],
+  .cbt-swatch[data-status] {
+    background: color-mix(in srgb, var(--cbt-fill, var(--brut-surface)) var(--cbt-cell-mix, 22%), var(--brut-surface));
+  }
+
+  .cbt-swatch[data-status] {
+    background: color-mix(in srgb, var(--cbt-fill, var(--brut-surface)) 45%, var(--brut-surface));
   }
 
   /* Where you are wins over what you have done to it. */

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ApiError } from '../api/client';
-import { paymentsApi, type ActivePlan } from '../api/payments.api';
+import { paymentsApi } from '../api/payments.api';
 import {
   loadRazorpayCheckout,
   type RazorpayFailure,
   type RazorpaySuccess,
 } from '../lib/razorpay';
 import { celebrate } from '../lib/animation';
+import { useActivePlan } from './useActivePlan';
 import { useAuth } from './useAuth';
 
 /**
@@ -32,29 +33,10 @@ const BRAND_COLOUR = '#ef7126';
  */
 export function usePayment() {
   const { user, refresh } = useAuth();
-  const [plan, setPlan] = useState<ActivePlan | null>(null);
-  const [planError, setPlanError] = useState<string>();
+  // The same price the banners across the app read, from the same cache.
+  const { plan, error: planError } = useActivePlan();
   const [stage, setStage] = useState<CheckoutStage>('idle');
   const [error, setError] = useState<string>();
-
-  useEffect(() => {
-    let cancelled = false;
-
-    paymentsApi
-      .activePlan()
-      .then((active) => {
-        if (!cancelled) setPlan(active);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setPlanError(err instanceof ApiError ? err.message : 'Could not load the price.');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   /** Razorpay said the payment went through; the server decides whether it did. */
   const confirmPayment = useCallback(

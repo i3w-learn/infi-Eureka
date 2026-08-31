@@ -176,4 +176,72 @@ describe('payment verification and webhook', () => {
     expect(paid.rowCount).toBe(1);
     expect(await premiumFlag()).toBe(true);
   });
+  /**
+   * The sequence that took money and gave nothing back: a first card declines,
+   * the student tries again on the SAME order and it goes through. Razorpay
+   * sends payment.failed then payment.captured. Treating the first as final
+   * left the order stuck on 'failed', refused the upgrade, and — because
+   * verify ignored what the upgrade returned — still told the browser
+   * "you're premium".
+   */
+  it('unlocks a retry that succeeds after an earlier attempt failed (FR-P-13)', async () => {
+    const auth = { authorization: `Bearer ${token}` };
+
+    function signedWebhook(body: string) {
+      return {
+        'content-type': 'application/json',
+        'x-razorpay-signature': createHmac('sha256', env.razorpay.webhookSecret)
+          .update(body)
+          .digest('hex'),
+      };
+    }
+
+    const failedBody = JSON.stringify({
+      event: 'payment.failed',
+      payload: { payment: { entity: { id: 'pay_declined', order_id: orderId } } },
+    });
+    const failed = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/webhook',
+      headers: signedWebhook(failedBody),
+      payload: failedBody,
+    });
+    expect(failed.statusCode).toBe(200);
+    expect(await premiumFlag()).toBe(false);
+
+    const capturedBody = JSON.stringify({
+      event: 'payment.captured',
+      payload: { payment: { entity: { id: 'pay_retry_ok', order_id: orderId } } },
+    });
+    const captured = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/webhook',
+      headers: signedWebhook(capturedBody),
+      payload: capturedBody,
+    });
+    expect(captured.statusCode).toBe(200);
+
+    const row = await queryOne<{ status: string; razorpay_payment_id: string }>(
+      'SELECT status, razorpay_payment_id FROM payments WHERE razorpay_order_id = $1',
+      [orderId],
+    );
+    expect(row!.status).toBe('paid');
+    expect(row!.razorpay_payment_id).toBe('pay_retry_ok');
+    expect(await premiumFlag()).toBe(true);
+
+    // And the browser coming back late agrees, rather than reporting success
+    // over an account that never changed.
+    const verify = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/verify',
+      headers: auth,
+      payload: {
+        razorpayOrderId: orderId,
+        razorpayPaymentId: 'pay_retry_ok',
+        razorpaySignature: checkoutSignature(orderId, 'pay_retry_ok'),
+      },
+    });
+    expect(verify.statusCode).toBe(200);
+    expect(verify.json().isPremium).toBe(true);
+  });
 });

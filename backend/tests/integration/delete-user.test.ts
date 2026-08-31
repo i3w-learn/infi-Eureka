@@ -58,7 +58,7 @@ describe('DELETE /users', () => {
   });
 
   it('deletes the account the phone number belongs to', async () => {
-    const phone = '+919876500001';
+    const phone = '9876500001';
     await makeUser(phone);
 
     const response = await app.inject({
@@ -73,7 +73,7 @@ describe('DELETE /users', () => {
   });
 
   it('deletes a student who has paid, rather than failing on the payment record', async () => {
-    const phone = '+919876500002';
+    const phone = '9876500002';
     const userId = await makeUser(phone);
     await query(
       `INSERT INTO payments (user_id, plan_id, razorpay_order_id, amount_paise, status)
@@ -95,7 +95,7 @@ describe('DELETE /users', () => {
   });
 
   it('takes the outstanding OTP challenges with it', async () => {
-    const phone = '+919876500003';
+    const phone = '9876500003';
     await makeUser(phone);
     await query(
       `INSERT INTO otp_challenges (phone, otp_hash, expires_at)
@@ -113,6 +113,21 @@ describe('DELETE /users', () => {
     expect(response.statusCode).toBe(204);
     const challenges = await query('SELECT 1 FROM otp_challenges WHERE phone = $1', [phone]);
     expect(challenges.rows).toHaveLength(0);
+  });
+
+  it('finds the account however the number is written', async () => {
+    const stored = '9876500004';
+    await makeUser(stored);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users',
+      headers: { 'x-admin-key': ADMIN_KEY },
+      payload: { phone: '+91 98765-00004' },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(await userExists(stored)).toBe(false);
   });
 
   it('is a 404 for a number nobody has registered', async () => {

@@ -112,7 +112,16 @@ export class PaymentService {
     );
     if (!valid) throw new InvalidSignatureError();
 
-    await this.paymentDao.markPaidAndUpgradeUser(input.razorpayOrderId, input.razorpayPaymentId);
+    // Never answer "you're premium" on the strength of having asked. The
+    // signature only proves Razorpay took the money; this result is what says
+    // the account actually changed. 'already_paid' counts — the webhook simply
+    // got here first.
+    const result = await this.paymentDao.markPaidAndUpgradeUser(
+      input.razorpayOrderId,
+      input.razorpayPaymentId,
+    );
+    if (result === 'not_found') throw new NotFoundError('This order does not exist.');
+
     return { isPremium: true };
   }
 

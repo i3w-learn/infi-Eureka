@@ -4,6 +4,8 @@ import { videosApi, type VideoSummary, type WatchSource } from '../api/videos.ap
 import { API_BASE, ApiError } from '../api/client';
 import { track } from '../analytics/ga';
 import { BackButton, useGoBack } from '../components/BackButton';
+import { formatPaise } from '../api/payments.api';
+import { useActivePlan } from '../hooks/useActivePlan';
 
 /**
  * One lecture, played on our page rather than sent off to YouTube.
@@ -25,6 +27,7 @@ function formatDuration(seconds: number): string {
 
 export function VideoPlayerPage() {
   const { videoId = '' } = useParams();
+  const { plan } = useActivePlan();
   const [video, setVideo] = useState<VideoSummary | null>(null);
   const [source, setSource] = useState<WatchSource | null>(null);
   const [error, setError] = useState<string>();
@@ -189,7 +192,7 @@ export function VideoPlayerPage() {
             One payment opens every lecture, note and mock test — no renewals.
           </p>
           <Link to="/unlock" className="sticker-btn mt-5">
-            Unlock everything — ₹3,499
+            Unlock everything{plan ? ` — ${formatPaise(plan.pricePaise)}` : ''}
           </Link>
         </div>
       ) : null}

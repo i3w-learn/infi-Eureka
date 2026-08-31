@@ -11,8 +11,9 @@ export interface CreatePaymentInput {
 /**
  * What happened when we tried to mark an order paid. 'already_paid' is a
  * success for the caller — verify and the webhook may both fire (FR-P-12).
+ * Only 'not_found' means nothing was unlocked.
  */
-export type MarkPaidResult = 'paid' | 'already_paid' | 'not_found' | 'invalid_transition';
+export type MarkPaidResult = 'paid' | 'already_paid' | 'not_found';
 
 /** The contract for payment records. */
 export interface IPaymentDao {

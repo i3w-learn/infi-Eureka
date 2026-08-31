@@ -75,7 +75,13 @@ export async function buildApp(): Promise<FastifyInstance> {
       try {
         done(null, body.length ? JSON.parse(body.toString('utf8')) : {});
       } catch {
-        done(null, {});
+        // Malformed JSON is the client's mistake and must read as one. Passing
+        // an empty object through instead turns it into "this field is
+        // required" further down, which sends whoever is debugging it looking
+        // in the wrong place entirely.
+        const error = new Error('Body is not valid JSON.') as Error & { statusCode: number };
+        error.statusCode = 400;
+        done(error, undefined);
       }
     },
   );

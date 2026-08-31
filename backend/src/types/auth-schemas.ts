@@ -1,6 +1,13 @@
 /** Request/response contracts for the phone + OTP auth flow. */
 
-const PHONE_PATTERN = '^\\+?[1-9][0-9]{9,14}$';
+/**
+ * Ten to fifteen digits, however a student spaces or dashes them, with an
+ * optional leading `+`. Deliberately forgiving: the digits are what identify
+ * an account, and `normalisePhone` reduces every accepted spelling to the one
+ * stored form. A pattern stricter than that helper only rejects people for
+ * punctuation.
+ */
+const PHONE_PATTERN = '^(?=(?:[^0-9]*[0-9]){10,15}[^0-9]*$)\\+?[0-9 ()-]+$';
 const DATE_PATTERN = '^[0-9]{2}-[0-9]{2}-[0-9]{4}$';
 
 const publicUserSchema = {

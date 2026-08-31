@@ -4,6 +4,8 @@ import { motion } from 'motion/react';
 import { BookRow } from '../components/BookRow';
 import { ContentRow } from '../components/ContentRow';
 import { groupIntoBooks } from '../lib/libraryBooks';
+import { formatPaise } from '../api/payments.api';
+import { useActivePlan } from '../hooks/useActivePlan';
 import { useAuth } from '../hooks/useAuth';
 import { useMockTests } from '../hooks/useMockTests';
 import { useLibrary } from '../hooks/useLibrary';
@@ -28,6 +30,7 @@ const rise = {
 
 export function DashboardPage() {
   const { user, isPremium } = useAuth();
+  const { plan } = useActivePlan();
   const { items: tests } = useMockTests();
   const { items: videos } = useVideos();
   const { items: formulaSheets } = useLibrary('formula_sheet');
@@ -85,10 +88,16 @@ export function DashboardPage() {
                 <p className="mt-1 text-sm text-white/60">One payment, yours until the exam. No subscription.</p>
               </div>
               <div className="flex items-center gap-5">
-                <p className="text-white/85">
-                  <s className="text-white/45">₹6,000</s>{' '}
-                  <span className="font-display text-[1.7rem] font-extrabold">₹3,499</span>
-                </p>
+                {plan ? (
+                  <p className="text-white/85">
+                    {plan.mrpPaise > plan.pricePaise ? (
+                      <s className="text-white/45">{formatPaise(plan.mrpPaise)}</s>
+                    ) : null}{' '}
+                    <span className="font-display text-[1.7rem] font-extrabold">
+                      {formatPaise(plan.pricePaise)}
+                    </span>
+                  </p>
+                ) : null}
                 <Link
                   to="/unlock"
                   className="group flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#f8823c] to-marigold px-6 py-3 font-semibold text-white shadow-[0_10px_24px_-10px_rgba(239,113,38,0.75)] transition-all hover:-translate-y-0.5"

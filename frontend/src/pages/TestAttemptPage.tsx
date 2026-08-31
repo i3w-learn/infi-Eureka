@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ApiError } from '../api/client';
 import { testsApi, type AttemptState, type LiveQuestion, type Option } from '../api/tests.api';
 import { RichText } from '../components/RichText';
+import { formatPaise } from '../api/payments.api';
+import { useActivePlan } from '../hooks/useActivePlan';
 
 /**
  * The CBT exam screen: timer, subject tabs, question, OMR options,
@@ -37,6 +39,45 @@ function formatClock(totalSeconds: number): string {
 
 /** How a question shows up in the palette. */
 type CellStatus = 'unvisited' | 'seen' | 'answered' | 'review' | 'answered-review';
+
+/**
+ * Where the student had got to, remembered per attempt.
+ *
+ * Position is display state, not score state, so the browser is allowed to hold
+ * it — unlike the clock, which only the server may know. Session storage rather
+ * than local: a paper you walked away from days ago should reopen on the first
+ * unanswered question, not on wherever you happened to be looking.
+ */
+function positionKey(attemptId: string): string {
+  return `cbt:pos:${attemptId}`;
+}
+
+function readPosition(attemptId: string): number | null {
+  try {
+    const raw = sessionStorage.getItem(positionKey(attemptId));
+    const index = raw === null ? Number.NaN : Number.parseInt(raw, 10);
+    return Number.isInteger(index) && index >= 0 ? index : null;
+  } catch {
+    // Private mode, or storage switched off. The caller has a fallback.
+    return null;
+  }
+}
+
+function writePosition(attemptId: string, index: number): void {
+  try {
+    sessionStorage.setItem(positionKey(attemptId), String(index));
+  } catch {
+    // Not worth surfacing: the student loses nothing they can see.
+  }
+}
+
+function clearPosition(attemptId: string): void {
+  try {
+    sessionStorage.removeItem(positionKey(attemptId));
+  } catch {
+    // As above.
+  }
+}
 
 interface PaletteQuestion {
   question: LiveQuestion;
@@ -87,6 +128,7 @@ function groupQuestions(questions: readonly LiveQuestion[]): SubjectGroup[] {
 export function TestAttemptPage() {
   const { testId } = useParams<{ testId: string }>();
   const navigate = useNavigate();
+  const { plan } = useActivePlan();
 
   const [attempt, setAttempt] = useState<AttemptState | null>(null);
   const [title, setTitle] = useState('Mock test');
@@ -102,6 +144,7 @@ export function TestAttemptPage() {
   const [submitting, setSubmitting] = useState(false);
   const [saveWarning, setSaveWarning] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const paletteRef = useRef<HTMLElement>(null);
 
   // ---- Load / resume ----
   useEffect(() => {
@@ -125,8 +168,32 @@ export function TestAttemptPage() {
         }
         setAnswers(restoredAnswers);
         setMarked(restoredMarks);
-        const first = [...state.questions].sort((a, b) => a.position - b.position)[0];
-        if (first) setVisited(new Set([first.id]));
+
+        const ordered = [...state.questions].sort((a, b) => a.position - b.position);
+
+        // Anything the server holds a row for was, by definition, looked at.
+        // Resetting this to just the first question threw that away, so a
+        // half-finished paper reopened looking untouched.
+        const restoredVisited = new Set(
+          ordered.filter((q) => q.id in restoredAnswers).map((q) => q.id),
+        );
+
+        // Come back to where you left off. Failing that (new device, storage
+        // cleared), the first question still without an answer — better than
+        // question 1, and free to work out from the payload we already have.
+        const stored = readPosition(state.attemptId);
+        const firstUnanswered = ordered.findIndex((q) => !restoredAnswers[q.id]);
+        const resumeAt =
+          stored !== null && stored < ordered.length
+            ? stored
+            : firstUnanswered === -1
+              ? 0
+              : firstUnanswered;
+
+        const landing = ordered[resumeAt];
+        if (landing) restoredVisited.add(landing.id);
+        setVisited(restoredVisited);
+        setCurrent(resumeAt);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -177,8 +244,9 @@ export function TestAttemptPage() {
       if (target) {
         setVisited((prev) => (prev.has(target.id) ? prev : new Set(prev).add(target.id)));
       }
+      if (attempt) writePosition(attempt.attemptId, clamped);
     },
-    [questions],
+    [questions, attempt],
   );
 
   // ---- Submit (via ref, so the timer never captures stale state) ----
@@ -187,6 +255,7 @@ export function TestAttemptPage() {
     setSubmitting(true);
     try {
       const summary = await testsApi.submit(attempt.attemptId);
+      clearPosition(attempt.attemptId);
       navigate(`/results/${summary.attemptId}`, { replace: true });
     } catch (error) {
       // Time already up server-side still yields a scored attempt to show.
@@ -218,6 +287,23 @@ export function TestAttemptPage() {
     if (attempt && secondsLeft === 0) void submitRef.current();
   }, [attempt, secondsLeft]);
 
+  /**
+   * Keep the palette showing the question you are actually on.
+   *
+   * The mobile sheet is `display: none` while shut, and a browser drops the
+   * scroll offset of a hidden element — so it reopened at question 1 however
+   * far down the paper you were. The desktop column keeps its offset but never
+   * followed you. Scrolling the live cell into view fixes both, and covers
+   * resuming onto question 45 too.
+   *
+   * `block: 'nearest'` makes it a no-op when the cell is already on screen, so
+   * stepping Next through a paper scrolls nothing.
+   */
+  useEffect(() => {
+    const cell = paletteRef.current?.querySelector<HTMLElement>('.cbt-cell[data-current="true"]');
+    cell?.scrollIntoView({ block: 'nearest' });
+  }, [current, paletteOpen]);
+
   // ---- Answering ----
   const persist = useCallback(
     (questionId: string, chosenOption: Option | null, markedForReview: boolean) => {
@@ -247,16 +333,39 @@ export function TestAttemptPage() {
     persist(question.id, answers[question.id] ?? null, nowMarked);
   }
 
-  const answeredCount = Object.values(answers).filter(Boolean).length;
+  const statusOf = useCallback(
+    (q: LiveQuestion): CellStatus => {
+      const answered = Boolean(answers[q.id]);
+      const isMarked = marked.has(q.id);
+      if (answered && isMarked) return 'answered-review';
+      if (answered) return 'answered';
+      if (isMarked) return 'review';
+      return visited.has(q.id) ? 'seen' : 'unvisited';
+    },
+    [answers, marked, visited],
+  );
 
-  function statusOf(q: LiveQuestion): CellStatus {
-    const answered = Boolean(answers[q.id]);
-    const isMarked = marked.has(q.id);
-    if (answered && isMarked) return 'answered-review';
-    if (answered) return 'answered';
-    if (isMarked) return 'review';
-    return visited.has(q.id) ? 'seen' : 'unvisited';
-  }
+  /**
+   * Every palette tally in one pass, from the same `statusOf` that colours the
+   * cells — so a number in the legend cannot disagree with the colour of the
+   * circle it counts. Tallying the raw `answers` and `marked` stores separately
+   * is what let an answered-and-marked question land in two buckets at once.
+   */
+  const counts = useMemo(() => {
+    const tally: Record<CellStatus, number> = {
+      unvisited: 0,
+      seen: 0,
+      answered: 0,
+      review: 0,
+      'answered-review': 0,
+    };
+    for (const q of questions) tally[statusOf(q)] += 1;
+    return tally;
+  }, [questions, statusOf]);
+
+  // What the submit sheet means by "answered": anything carrying an option,
+  // flagged for review or not. Those are scored exactly the same.
+  const attemptedCount = counts.answered + counts['answered-review'];
 
   function answeredIn(group: SubjectGroup): number {
     return group.sections.reduce(
@@ -275,7 +384,7 @@ export function TestAttemptPage() {
             One payment opens every mock test, lecture and note — no renewals.
           </p>
           <button type="button" onClick={() => navigate('/unlock')} className="cbt-btn mt-5">
-            Unlock everything — ₹3,499
+            Unlock everything{plan ? ` — ${formatPaise(plan.pricePaise)}` : ''}
           </button>
           <button
             type="button"
@@ -518,6 +627,7 @@ export function TestAttemptPage() {
 
         {/* ---- Question palette: a column on desktop, a sheet on mobile ---- */}
         <aside
+          ref={paletteRef}
           className={`cbt-palette w-full shrink-0 lg:block lg:w-[19rem] lg:overflow-y-auto ${
             // lg:static undoes the sheet if the viewport widens while it is
             // open — otherwise a rotate turns the desktop column into a
@@ -535,21 +645,24 @@ export function TestAttemptPage() {
           ) : null}
 
           <div className="p-4">
+            {/* The swatch carries the same `data-status` as the cells and is
+                painted by the same CSS rule, so the two cannot drift apart —
+                the legend used to hardcode its own colours inline, which is how
+                "Not visited" ended up describing a shade no cell ever wore. */}
             <div className="mb-5 grid grid-cols-2 gap-2 text-xs text-ink-soft">
-              <span className="flex items-center gap-1.5">
-                <span className="cbt-swatch" style={{ background: 'var(--cbt-unvisited)' }} /> Not visited
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="cbt-swatch" style={{ background: 'color-mix(in srgb, var(--cbt-answered) 40%, white)' }} />{' '}
-                Answered ({answeredCount})
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="cbt-swatch" style={{ background: 'color-mix(in srgb, var(--cbt-review) 40%, white)' }} />{' '}
-                Review ({marked.size})
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="cbt-swatch" style={{ background: 'color-mix(in srgb, var(--cbt-both) 40%, white)' }} /> Ans+Review
-              </span>
+              {(
+                [
+                  ['unvisited', 'Not visited'],
+                  ['seen', 'Not answered'],
+                  ['answered', 'Answered'],
+                  ['review', 'Review'],
+                  ['answered-review', 'Ans+Review'],
+                ] as const
+              ).map(([status, label]) => (
+                <span key={status} className="flex items-center gap-1.5">
+                  <span className="cbt-swatch" data-status={status} /> {label} ({counts[status]})
+                </span>
+              ))}
             </div>
 
             {groups.map((group) => (
@@ -674,8 +787,8 @@ export function TestAttemptPage() {
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 {[
-                  { label: 'Answered', value: answeredCount, tone: 'var(--cbt-answered)' },
-                  { label: 'Unanswered', value: questions.length - answeredCount, tone: 'var(--color-danger)' },
+                  { label: 'Answered', value: attemptedCount, tone: 'var(--cbt-answered)' },
+                  { label: 'Unanswered', value: questions.length - attemptedCount, tone: 'var(--color-danger)' },
                   { label: 'Marked for review', value: marked.size, tone: 'var(--cbt-review)' },
                   { label: 'Time left', value: formatClock(secondsLeft), tone: 'var(--cbt-ink)' },
                 ].map((stat) => (

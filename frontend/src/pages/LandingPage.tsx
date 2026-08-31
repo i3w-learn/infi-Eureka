@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { BrandMark } from '../components/BrandMark';
 import { motion } from 'motion/react';
 import { AnswerSheet } from '../components/AnswerSheet';
+import { formatPaise } from '../api/payments.api';
+import { useActivePlan } from '../hooks/useActivePlan';
 
 /**
  * The public home page. Everything a visitor sees before signing up.
@@ -67,6 +69,8 @@ function Logo({ compact = false }: { compact?: boolean }) {
 }
 
 export function LandingPage() {
+  const { plan } = useActivePlan();
+
   return (
     <div className="min-h-screen bg-paper text-ink">
       {/* ---- Nav ---- */}
@@ -135,9 +139,13 @@ export function LandingPage() {
                 →
               </span>
             </Link>
-            <p className="text-sm text-ink-faint">
-              <s>₹6,000</s> <span className="font-semibold text-ink">₹3,499</span> · one time
-            </p>
+            {plan ? (
+              <p className="text-sm text-ink-faint">
+                {plan.mrpPaise > plan.pricePaise ? <s>{formatPaise(plan.mrpPaise)}</s> : null}{' '}
+                <span className="font-semibold text-ink">{formatPaise(plan.pricePaise)}</span> · one
+                time
+              </p>
+            ) : null}
           </motion.div>
         </div>
 
@@ -247,12 +255,16 @@ export function LandingPage() {
           <p className="text-[0.8rem] font-medium tracking-[0.18em] text-ink-faint uppercase">
             One payment, everything
           </p>
-          <p className="mt-5 flex items-baseline justify-center gap-3">
-            <s className="text-xl text-ink-faint">₹6,000</s>
-            <span className="font-display text-[3.2rem] leading-none font-extrabold tracking-tight">
-              ₹3,499
-            </span>
-          </p>
+          {plan ? (
+            <p className="mt-5 flex items-baseline justify-center gap-3">
+              {plan.mrpPaise > plan.pricePaise ? (
+                <s className="text-xl text-ink-faint">{formatPaise(plan.mrpPaise)}</s>
+              ) : null}
+              <span className="font-display text-[3.2rem] leading-none font-extrabold tracking-tight">
+                {formatPaise(plan.pricePaise)}
+              </span>
+            </p>
+          ) : null}
           <p className="mt-3 text-[0.95rem] text-ink-soft">
             Every video, every note, every mock test. Yours until the exam — no renewals, no
             subscription.

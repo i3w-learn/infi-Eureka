@@ -3,7 +3,9 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { query, closePool } from '../../src/config/db.js';
 
+/** How a student types it here; how it is stored everywhere. */
 const PHONE = '+919876500001';
+const STORED_PHONE = '9876500001';
 
 /**
  * The whole signup journey over real HTTP against the real test database:
@@ -15,13 +17,13 @@ describe('phone + OTP auth flow', () => {
   beforeAll(async () => {
     app = await buildApp();
     await app.ready();
-    await query('DELETE FROM users WHERE phone = $1', [PHONE]);
-    await query('DELETE FROM otp_challenges WHERE phone = $1', [PHONE]);
+    await query('DELETE FROM users WHERE phone = $1', [STORED_PHONE]);
+    await query('DELETE FROM otp_challenges WHERE phone = $1', [STORED_PHONE]);
   });
 
   afterAll(async () => {
-    await query('DELETE FROM users WHERE phone = $1', [PHONE]);
-    await query('DELETE FROM otp_challenges WHERE phone = $1', [PHONE]);
+    await query('DELETE FROM users WHERE phone = $1', [STORED_PHONE]);
+    await query('DELETE FROM otp_challenges WHERE phone = $1', [STORED_PHONE]);
     await app.close();
     await closePool();
   });
@@ -84,7 +86,30 @@ describe('phone + OTP auth flow', () => {
       headers: { authorization: `Bearer ${registered.accessToken}` },
     });
     expect(meResponse.statusCode).toBe(200);
-    expect(meResponse.json().phone).toBe(PHONE);
+    // Stored as the bare ten digits, whatever spelling was typed.
+    expect(meResponse.json().phone).toBe(STORED_PHONE);
+  });
+
+  it('treats a differently written number as the same account', async () => {
+    // The account above was created from '+919876500001'. A student who types
+    // the plain ten digits next time must land in it, not in a second account.
+    const otpResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/request-otp',
+      payload: { phone: STORED_PHONE },
+    });
+    const { challengeToken, devOtp } = otpResponse.json();
+
+    const verifyResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-otp',
+      payload: { phone: STORED_PHONE, otp: devOtp, challengeToken },
+    });
+    expect(verifyResponse.statusCode).toBe(200);
+    expect(verifyResponse.json().isNewUser).toBe(false);
+
+    const accounts = await query('SELECT 1 FROM users WHERE phone = $1', [STORED_PHONE]);
+    expect(accounts.rows).toHaveLength(1);
   });
 
   it('logs an existing user straight in on the next OTP', async () => {
