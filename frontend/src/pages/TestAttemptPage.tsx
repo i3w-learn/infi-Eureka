@@ -190,8 +190,6 @@ export function TestAttemptPage() {
               ? 0
               : firstUnanswered;
 
-        const landing = ordered[resumeAt];
-        if (landing) restoredVisited.add(landing.id);
         setVisited(restoredVisited);
         setCurrent(resumeAt);
       })
@@ -234,19 +232,26 @@ export function TestAttemptPage() {
   const question = questions[current];
   const groups = useMemo(() => groupQuestions(questions), [questions]);
 
-  /** Navigate to a question, recording it as seen for the palette. */
+  /**
+   * Navigate, marking the question being LEFT as seen — not the one arrived at.
+   *
+   * Marking on arrival meant the question a student was still reading already
+   * counted under "Not answered", so the tally accused them of skipping
+   * something they had not finished looking at. "Seen" means seen and moved
+   * on, which is the only reading of it a student would recognise.
+   */
   const goTo = useCallback(
     (index: number) => {
       const clamped = Math.min(Math.max(index, 0), questions.length - 1);
+      const leaving = clamped === current ? undefined : questions[current];
+      if (leaving) {
+        setVisited((prev) => (prev.has(leaving.id) ? prev : new Set(prev).add(leaving.id)));
+      }
       setCurrent(clamped);
       setPaletteOpen(false);
-      const target = questions[clamped];
-      if (target) {
-        setVisited((prev) => (prev.has(target.id) ? prev : new Set(prev).add(target.id)));
-      }
       if (attempt) writePosition(attempt.attemptId, clamped);
     },
-    [questions, attempt],
+    [questions, attempt, current],
   );
 
   // ---- Submit (via ref, so the timer never captures stale state) ----
@@ -671,32 +676,29 @@ export function TestAttemptPage() {
                   <p className="mb-3 text-base font-semibold">{group.subject}</p>
                 ) : null}
 
-                {group.sections.map((bucket) => (
-                  <div key={bucket.section ?? 'none'} className="mb-3">
-                    {bucket.section ? (
-                      <p className="mb-2 text-sm text-ink-faint">
-                        Section {bucket.section}
-                        {bucket.section === 'B' ? ' (any 10)' : ''}
-                      </p>
-                    ) : null}
-                    <div className="grid grid-cols-7 gap-2">
-                      {bucket.questions.map(({ question: q, index }) => (
-                        <button
-                          key={q.id}
-                          type="button"
-                          onClick={() => goTo(index)}
-                          data-status={statusOf(q)}
-                          data-current={index === current}
-                          aria-label={`Question ${q.position}`}
-                          aria-current={index === current || undefined}
-                          className="cbt-cell"
-                        >
-                          {q.position}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                {/* One unbroken grid per subject. The section headings that
+                    used to split it cost two rows of height each and told a
+                    student nothing the numbers did not — questions run 1..180
+                    straight through, and the section rule is stated on the
+                    question itself. */}
+                <div className="grid grid-cols-7 gap-2">
+                  {group.sections.flatMap((bucket) =>
+                    bucket.questions.map(({ question: q, index }) => (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => goTo(index)}
+                        data-status={statusOf(q)}
+                        data-current={index === current}
+                        aria-label={`Question ${q.position}`}
+                        aria-current={index === current || undefined}
+                        className="cbt-cell"
+                      >
+                        {q.position}
+                      </button>
+                    )),
+                  )}
+                </div>
               </div>
             ))}
           </div>
