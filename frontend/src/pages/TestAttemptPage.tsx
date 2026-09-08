@@ -16,9 +16,10 @@ import { useActivePlan } from '../hooks/useActivePlan';
  *
  * 1. Auto-submit at time-up goes through a ref, so it submits the CURRENT
  *    answers (the original captured a stale empty state and scored 0).
- * 2. The clock counts down from the server's `secondsRemaining` and the
- *    server enforces `expiresAt` — reloading or editing the client cannot buy
- *    time. The original trusted localStorage.
+ * 2. The clock reads down to a deadline anchored on the server's
+ *    `secondsRemaining`, and the server enforces `expiresAt` — reloading,
+ *    sleeping the machine, or editing the client cannot buy time. The
+ *    original trusted localStorage.
  *
  * Deliberately animation-free where it matters: switching questions and
  * picking answers is instant. A student racing a timer needs response, not
@@ -146,6 +147,9 @@ export function TestAttemptPage() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const paletteRef = useRef<HTMLElement>(null);
 
+  /** When the paper is due, in `Date.now()` terms. Anchored once, on load. */
+  const deadlineRef = useRef<number | null>(null);
+
   // ---- Load / resume ----
   useEffect(() => {
     if (!testId) return;
@@ -159,6 +163,7 @@ export function TestAttemptPage() {
           return;
         }
         setAttempt(state);
+        deadlineRef.current = Date.now() + state.secondsRemaining * 1000;
         setSecondsLeft(state.secondsRemaining);
         const restoredAnswers: Record<string, Option | null> = {};
         const restoredMarks = new Set<string>();
@@ -279,13 +284,42 @@ export function TestAttemptPage() {
     submitRef.current = doSubmit;
   }, [doSubmit]);
 
-  // ---- Countdown; auto-submit at zero through the ref ----
+  /**
+   * ---- The clock reads the deadline; it does not count ----
+   *
+   * Subtracting one a second assumed the browser fires every tick, and it does
+   * not: a hidden tab is throttled to roughly one a minute, and a sleeping
+   * laptop fires none at all. So the clock ran slow, and a student who shut
+   * the lid for twenty minutes woke to twenty minutes they no longer had —
+   * until a reload snapped the number back and took them by surprise.
+   *
+   * Reading `deadline - now` makes a skipped tick cost nothing: the next one,
+   * whenever it lands, shows the truth. The interval is only a repaint now,
+   * and `visibilitychange` repaints the instant they come back rather than up
+   * to a second later.
+   *
+   * The deadline is anchored on load from the server's `secondsRemaining`
+   * rather than parsed out of `expiresAt`, so a wrong system clock cannot
+   * shift it. Moving the clock mid-paper buys nothing either — the server
+   * keeps its own `expires_at` and stops taking answers there regardless.
+   *
+   * Auto-submit at zero still goes through the ref, so it sends the answers as
+   * they stand rather than the empty set the effect closed over.
+   */
   useEffect(() => {
     if (!attempt) return;
-    const interval = setInterval(() => {
-      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
+    const tick = () => {
+      const deadline = deadlineRef.current;
+      if (deadline === null) return;
+      setSecondsLeft(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [attempt]);
 
   useEffect(() => {
