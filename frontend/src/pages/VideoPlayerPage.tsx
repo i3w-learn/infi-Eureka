@@ -72,6 +72,7 @@ export function VideoPlayerPage() {
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
       if (err instanceof ApiError && err.needsPayment) {
         setLocked(true);
+        track.paywallHit('video', videoId);
         return;
       }
       setError(err instanceof ApiError ? err.message : 'Could not start this lecture.');

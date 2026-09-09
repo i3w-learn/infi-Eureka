@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { identify } from '../analytics/ga';
 import { authApi } from '../api/auth.api';
 import { tokenStore } from '../api/client';
 import type { User } from '../api/types';
@@ -66,6 +67,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Tell analytics who this is, from the one place that knows.
+   *
+   * Watching `user` rather than calling this from each of login, signup,
+   * session restore and logout in turn: those all land here anyway, and a
+   * fifth way of becoming logged in would otherwise arrive untracked.
+   */
+  useEffect(() => {
+    identify(user?.id ?? null);
+  }, [user]);
 
   const logout = useCallback(() => {
     tokenStore.clear();

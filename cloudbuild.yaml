@@ -1,0 +1,31 @@
+# Why this file exists at all.
+#
+# `gcloud builds submit --tag` cannot pass build arguments, and the frontend
+# needs one: Vite bakes VITE_* values into the JavaScript when the bundle is
+# compiled, so the GA4 measurement id has to arrive HERE. Setting it on the
+# Cloud Run service afterwards does nothing — by then the bundle is built and
+# the id is already missing from it.
+#
+# That is the whole reason for switching `just deploy` from --tag to --config.
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=$_IMAGE
+      # Empty is a valid value: with no id every call in ga.ts is a no-op, so
+      # a build without one ships an app that simply reports nothing.
+      - --build-arg=VITE_GA4_MEASUREMENT_ID=$_GA4_MEASUREMENT_ID
+      - .
+
+images:
+  - $_IMAGE
+
+substitutions:
+  # The production GA4 measurement id, G-XXXXXXXXXX. It ends up in the public
+  # bundle where anyone can read it, so it is not a secret and belongs in git
+  # rather than in someone's shell history.
+  _GA4_MEASUREMENT_ID: 'G-B96G697WSZ'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

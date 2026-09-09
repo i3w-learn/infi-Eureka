@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { libraryApi, type LibraryDocumentDetail } from '../api/library.api';
 import { ApiError } from '../api/client';
+import { track } from '../analytics/ga';
 import { BackButton } from '../components/BackButton';
 
 /**
@@ -34,11 +35,13 @@ export function DocumentReaderPage() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        const needsPayment = err instanceof ApiError && err.needsPayment;
+        if (needsPayment) track.paywallHit('document', documentId);
         setOpened({
           id: documentId,
           error: {
             message: err instanceof ApiError ? err.message : 'Could not open this document.',
-            needsPayment: err instanceof ApiError && err.needsPayment,
+            needsPayment,
           },
         });
       });

@@ -5,6 +5,7 @@ import { ApiError } from '../api/client';
 import { testsApi, type AttemptState, type LiveQuestion, type Option } from '../api/tests.api';
 import { RichText } from '../components/RichText';
 import { formatPaise } from '../api/payments.api';
+import { track } from '../analytics/ga';
 import { useActivePlan } from '../hooks/useActivePlan';
 
 /**
@@ -204,6 +205,7 @@ export function TestAttemptPage() {
         // the only thing that knows which paper is the free sample.
         if (error instanceof ApiError && error.needsPayment) {
           setLocked(true);
+          track.paywallHit('test', testId);
           return;
         }
         setLoadError(

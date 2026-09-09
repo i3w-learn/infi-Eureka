@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { SUBJECT_LABELS, type ContentItem, type Subject } from '../lib/sample-content';
+import { track, type PaywallContent } from '../analytics/ga';
 
 /**
  * One content card: CSS-drawn cover in the subject's colour, class badge,
@@ -88,6 +89,13 @@ function CoverMark({ kind }: { kind: ContentKind }) {
   );
 }
 
+/** A locked card and a `paywall_hit` name the same three things differently. */
+const PAYWALL_CONTENT: Record<ContentKind, PaywallContent> = {
+  video: 'video',
+  note: 'chapter',
+  test: 'test',
+};
+
 interface ContentCardProps {
   item: ContentItem;
   kind: ContentKind;
@@ -126,6 +134,10 @@ export function ContentCard({
   return (
     <Link
       to={to}
+      // Reported here rather than at each grid that renders these: this
+      // component already knows what is locked, so every shelf and every
+      // catalogue is covered by the one call, and a new grid cannot forget.
+      onClick={locked ? () => track.paywallHit(PAYWALL_CONTENT[kind], item.id) : undefined}
       className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-paper-edge bg-white shadow-[0_10px_26px_-18px_rgba(44,21,64,0.25)] transition-shadow hover:shadow-[0_18px_38px_-18px_rgba(44,21,64,0.35)] ${
         fixedWidth ? 'w-56 shrink-0' : 'w-full'
       }`}

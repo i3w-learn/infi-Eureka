@@ -7,6 +7,7 @@ import {
   type RazorpaySuccess,
 } from '../lib/razorpay';
 import { celebrate } from '../lib/animation';
+import { track } from '../analytics/ga';
 import { useActivePlan } from './useActivePlan';
 import { useAuth } from './useAuth';
 
@@ -48,6 +49,11 @@ export function usePayment() {
           razorpayPaymentId: response.razorpay_payment_id,
           razorpaySignature: response.razorpay_signature,
         });
+        // Reported here, after OUR server has checked the signature — not from
+        // Razorpay's callback. A student can close the window at the moment of
+        // truth and leave the two disagreeing, and revenue counted off the
+        // wrong signal is worse than revenue not counted at all.
+        if (plan) track.paymentCompleted(plan.pricePaise / 100);
         // Re-read the account rather than assuming: premium lives on the
         // server, and every gate in the app reads it from there.
         await refresh();
@@ -64,7 +70,7 @@ export function usePayment() {
         );
       }
     },
-    [refresh],
+    [refresh, plan],
   );
 
   const pay = useCallback(async () => {
@@ -107,6 +113,9 @@ export function usePayment() {
       });
 
       checkout.open();
+      // Sent once the window is actually up, so the gap to `payment_completed`
+      // reads as "gave up at the payment sheet" rather than "failed to load".
+      track.checkoutOpened(order.amountPaise / 100);
     } catch (err: unknown) {
       setStage('idle');
       setError(

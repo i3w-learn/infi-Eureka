@@ -100,11 +100,21 @@ deploy tag:
     # --async, because gcloud exits non-zero when it cannot stream build logs
     # (this account cannot) even though the build itself is fine. Polling the
     # build's own status is the only reading that means anything.
+    # --config, not --tag: the frontend needs a build arg (the GA4 id, which
+    # Vite bakes into the bundle) and --tag cannot pass one. See cloudbuild.yaml.
+    GA4=$(grep '_GA4_MEASUREMENT_ID:' cloudbuild.yaml | sed "s/.*: *'\(.*\)'.*/\1/")
+    if [ -z "$GA4" ]; then
+      echo "Note: no GA4 measurement id in cloudbuild.yaml — analytics will be off."
+      echo
+    fi
+
     echo "Building {{tag}}..."
     BUILD=$(gcloud builds submit \
       --region asia-south1 \
       --gcs-source-staging-dir gs://ai-powered-479515_asia-south1_cloudbuild/source \
-      --tag "$IMAGE" --async --format='value(id)')
+      --config cloudbuild.yaml \
+      --substitutions "_IMAGE=$IMAGE" \
+      --async --format='value(id)')
 
     while :; do
       STATUS=$(gcloud builds describe "$BUILD" --region asia-south1 --format='value(status)')
