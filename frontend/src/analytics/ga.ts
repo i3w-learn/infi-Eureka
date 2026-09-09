@@ -27,8 +27,15 @@ export function initAnalytics(): void {
   document.head.appendChild(script);
 
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer.push(args);
+  // `arguments`, not a rest parameter, and this is not a style choice.
+  //
+  // gtag.js reads the queue looking for `arguments` objects. A rest parameter
+  // collects into a real Array, which it does not recognise as a command, so
+  // every js/config/event call sat in dataLayer and no request was ever sent.
+  // The tag loaded, the id was right, and the property reported nothing.
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments);
   };
   window.gtag('js', new Date());
   // We send page views ourselves on route change, so GA should not guess.
